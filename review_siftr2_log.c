@@ -26,6 +26,7 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     double relative_time_stamp = 0;
 
     uint32_t data_pkt_cnt = 0;
+    uint64_t total_data_sz = 0;
     uint32_t fragment_cnt = 0;
 
     int idx;
@@ -84,6 +85,7 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                 }
 
                 if (data_sz > 0) {
+                    total_data_sz += data_sz;
                     data_pkt_cnt++;
                 }
                 if ((data_sz % f_basics->flow_list[idx].mss) > 0) {
@@ -109,9 +111,10 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     f_basics->num_lines = line_cnt;
 
     printf("input file has total lines: %u\n"
-           "input flow data_pkt_cnt: %u, fragment_cnt: %u, fragment_ratio: %.3f\n",
-           line_cnt, data_pkt_cnt, fragment_cnt,
-           (double)fragment_cnt / data_pkt_cnt);
+           "input flow data_pkt_cnt: %u, average data_pkt_size: %" PRIu64 " bytes\n"
+           "           fragment_cnt: %u, fragment_ratio: %.3f\n",
+           line_cnt, data_pkt_cnt, (total_data_sz / data_pkt_cnt),
+           fragment_cnt, (double)fragment_cnt / data_pkt_cnt);
 }
 
 int main(int argc, char *argv[]) {
