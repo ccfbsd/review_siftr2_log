@@ -787,6 +787,9 @@ show_file_basic_stats(const struct file_basic_stats *f_basics)
 {
     struct timeval result;
     double time_in_seconds;
+    time_t seconds;
+    struct tm *time_info;
+    char buffer[30];
 
     timeval_subtract(&result, &f_basics->last_line_stats->disable_time,
                      &f_basics->first_line_stats->enable_time);
@@ -805,11 +808,25 @@ show_file_basic_stats(const struct file_basic_stats *f_basics)
     }
     printf("\n");
 
-    printf("starting_time: %jd.%06ld\n",
+    // Extract seconds part of timeval
+    seconds = f_basics->first_line_stats->enable_time.tv_sec;
+    // Convert to calendar time
+    time_info = localtime(&seconds);
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", time_info);
+
+    printf("starting_time: %s.%06ld (%jd.%06ld)\n", buffer,
+	   (intmax_t)f_basics->first_line_stats->enable_time.tv_usec,
            f_basics->first_line_stats->enable_time.tv_sec,
            (intmax_t)f_basics->first_line_stats->enable_time.tv_usec);
 
-    printf("ending_time: %jd.%06ld\n",
+    // Extract seconds part of timeval
+    seconds = f_basics->last_line_stats->disable_time.tv_sec;
+    // Convert to calendar time
+    time_info = localtime(&seconds);
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", time_info);
+
+    printf("ending_time: %s.%06ld (%jd.%06ld)\n", buffer,
+	   (intmax_t)f_basics->last_line_stats->disable_time.tv_usec,
            f_basics->last_line_stats->disable_time.tv_sec,
            (intmax_t)f_basics->last_line_stats->disable_time.tv_usec);
 
