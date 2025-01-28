@@ -27,6 +27,8 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
 
     uint32_t data_pkt_cnt = 0;
     uint64_t total_data_sz = 0;
+    uint32_t min_data_pkt_sz = UINT32_MAX;
+    uint32_t max_data_pkt_sz = 0;
     uint32_t fragment_cnt = 0;
 
     int idx;
@@ -87,6 +89,12 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                 if (data_sz > 0) {
                     total_data_sz += data_sz;
                     data_pkt_cnt++;
+                    if (min_data_pkt_sz > data_sz) {
+                        min_data_pkt_sz = data_sz;
+                    }
+                    if (max_data_pkt_sz < data_sz) {
+                        max_data_pkt_sz = data_sz;
+                    }
                 }
                 if ((data_sz % f_basics->flow_list[idx].mss) > 0) {
                     fragment_cnt++;
@@ -112,8 +120,10 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
 
     printf("input file has total lines: %u\n"
            "input flow data_pkt_cnt: %u, average data_pkt_size: %" PRIu64 " bytes\n"
+           "           min data_pkt_size: %u bytes, max data_pkt_size: %u bytes\n"
            "           fragment_cnt: %u, fragment_ratio: %.3f\n",
            line_cnt, data_pkt_cnt, (total_data_sz / data_pkt_cnt),
+           min_data_pkt_sz, max_data_pkt_sz,
            fragment_cnt, (double)fragment_cnt / data_pkt_cnt);
 }
 

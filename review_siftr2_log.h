@@ -852,7 +852,7 @@ read_body_by_flowid(struct file_basic_stats *f_basics, uint32_t flowid)
                flowid);
         stats_into_plot_file(f_basics, flowid, plot_file_name);
 
-        printf("    has %u useful records (%u outputs, %u inputs)\n",
+        printf("           has %u useful records (%u outputs, %u inputs)\n",
                f_basics->flow_list[idx].record_cnt,
                f_basics->flow_list[idx].dir_out,
                f_basics->flow_list[idx].dir_in);
