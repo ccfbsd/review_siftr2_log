@@ -100,7 +100,7 @@ struct last_line_fields {
 enum {
     FL_FLOW_ID,     FL_LOIP,        FL_LPORT,       FL_FOIP,    FL_FPORT,
     FL_MSS,         FL_ISSACK,      FL_SNDSCALE,    FL_RCVSCALE,
-    FL_NUMRECORD,   TOTAL_FLOWLIST_FIELDS,
+    FL_NUMRECORD,   FL_NTRANS,   TOTAL_FLOWLIST_FIELDS,
 };
 
 /* TCP traffic record fields */
@@ -149,6 +149,7 @@ struct flow_info {
     uint8_t     snd_scale;                  /* Window scaling for snd window. */
     uint8_t     rcv_scale;                  /* Window scaling for recv window. */
     uint32_t    record_cnt;
+    uint32_t    trans_cnt;
     uint32_t    dir_in;                 /* count for output packets */
     uint32_t    dir_out;                /* count for input packets */
     bool        is_info_set;
@@ -450,6 +451,7 @@ fill_flow_info(struct flow_info *target_flow, char *fields[])
         target_flow->snd_scale = (uint8_t)my_atol(fields[FL_SNDSCALE]);
         target_flow->rcv_scale = (uint8_t)my_atol(fields[FL_RCVSCALE]);
         target_flow->record_cnt = (uint32_t)my_atol(fields[FL_NUMRECORD]);
+        target_flow->trans_cnt = (uint32_t)my_atol(fields[FL_NTRANS]);
         target_flow->dir_in = 0;
         target_flow->dir_out = 0;
         target_flow->is_info_set = true;
@@ -701,13 +703,13 @@ static void
 print_flow_info(struct flow_info *flow_info)
 {
     printf(" id:%10u (%s:%hu<->%s:%hu) mss:%u SACK:%d snd/rcv_scal:%hhu/%hhu "
-           "cnt:%u\n",
+           "cnt:%u/%u\n",
            flow_info->flowid,
            flow_info->laddr, flow_info->lport,
            flow_info->faddr, flow_info->fport,
            flow_info->mss,flow_info->isSACK,
            flow_info->snd_scale,flow_info->rcv_scale,
-           flow_info->record_cnt);
+           flow_info->record_cnt, flow_info->trans_cnt);
 }
 
 static inline void
