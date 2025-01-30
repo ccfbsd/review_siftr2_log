@@ -9,6 +9,10 @@ ifeq ($(UNAME), Darwin)
     CC = clang
 endif
 
+ifeq ($(UNAME), FreeBSD)
+    CC = clang
+endif
+
 # compiler flags:
 #  -std=c2x	comply with C23
 #  -O3		optimize level at 3
