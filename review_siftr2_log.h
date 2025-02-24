@@ -159,6 +159,7 @@ struct file_basic_stats {
     FILE        *file;
     uint32_t    num_lines;
     uint32_t    flow_count;
+    double first_flow_start_time;
     struct flow_info *flow_list;
     struct first_line_fields *first_line_stats;
     struct last_line_fields *last_line_stats;

@@ -22,7 +22,7 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     char current_line[max_line_len];
     char previous_line[max_line_len] = {};
 
-    double first_flow_start_time = 0;
+    double first_flow_start_time = f_basics->first_flow_start_time;
     double relative_time_stamp = 0;
 
     uint32_t data_pkt_cnt = 0;
@@ -141,12 +141,13 @@ int main(int argc, char *argv[]) {
         {"help", no_argument, 0, 'h'},
         {"file", required_argument, 0, 'f'},
         {"stats", required_argument, 0, 's'},
+        {"flow_start", required_argument, 0, 't'},
         {"verbose", no_argument, 0, 'v'},
         {0, 0, 0, 0}
     };
 
     // Process command-line arguments
-    while ((opt = getopt_long(argc, argv, "vhf:s:", long_opts, &opt_idx)) != -1) {
+    while ((opt = getopt_long(argc, argv, "vhf:t:s:", long_opts, &opt_idx)) != -1) {
         switch (opt) {
             case 'v':
                 verbose = opt_match = true;
@@ -157,6 +158,7 @@ int main(int argc, char *argv[]) {
                 printf("Usage: %s [options]\n", argv[0]);
                 printf(" -h, --help          Display this help message\n");
                 printf(" -f, --file          Get siftr log basics\n");
+                printf(" -t, --flow_start Unix_timestamp  The start Unix time of the first flow\n");
                 printf(" -s, --stats flowid  Get stats from flowid\n");
                 printf(" -v, --verbose       Verbose mode\n");
                 break;
@@ -168,6 +170,12 @@ int main(int argc, char *argv[]) {
                     return EXIT_FAILURE;
                 }
                 show_file_basic_stats(&f_basics);
+                break;
+            case 't':
+                opt_match = true;
+                printf("Unix time of the first flow starting time from "
+                       "input is: %s\n", optarg);
+                f_basics.first_flow_start_time = atof(optarg);
                 break;
             case 's':
                 opt_match = true;
@@ -181,7 +189,8 @@ int main(int argc, char *argv[]) {
                 read_body_by_flowid(&f_basics, my_atol(optarg));
                 break;
             default:
-                printf("Usage: %s [-v | -h] [-f file_name] [-s flow_id]\n", argv[0]);
+                printf("Usage: %s [-v | -h] [-f file_name] [-t flow_start] "
+                       "[-s flow_id]\n", argv[0]);
                 return EXIT_FAILURE;
         }
     }
@@ -189,7 +198,8 @@ int main(int argc, char *argv[]) {
     /* Handle case where no options are provided or non-option arguments */
     if (!opt_match) {
         printf("Un-expected argument!\n");
-        printf("Usage: %s [-v | -h] [-f file_name] [-s flow_id]\n", argv[0]);
+        printf("Usage: %s [-v | -h] [-f file_name] [-t flow_start] [-s flow_id]"
+               "\n", argv[0]);
         return EXIT_FAILURE;
     }
 
