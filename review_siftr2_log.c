@@ -61,7 +61,8 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
 
     fprintf(plot_file,
             "##direction" TAB "relative_timestamp" TAB "cwnd" TAB
-            "ssthresh" TAB "th_seq" TAB "th_ack" TAB "data_size"
+            "ssthresh" TAB "data_size" TAB "inflight_bytes" TAB "def_pipe" TAB
+            "old_pipe" TAB "t_flags"
             "\n");
 
     while (fgets(current_line, max_line_len, f_basics->file) != NULL) {
@@ -79,6 +80,21 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
 
             if (my_atol(fields[FLOW_ID]) == flowid) {
                 uint32_t data_sz = (uint32_t)my_atol(fields[TCP_DATA_SZ]);
+
+                uint32_t inflight_bytes = (uint32_t)my_atol(fields[INFLIGHT_BYTES]);
+                uint32_t def_pipe = (uint32_t)my_atol(fields[DEF_PIPE]);
+                uint32_t old_pipe = (uint32_t)my_atol(fields[OLD_PIPE]);
+
+                uint32_t t_flags = my_atol(fields[FLAG]);
+                char t_flags_arr[TF_ARRAY_MAX_LENGTH] = {};
+
+                if (IN_RECOVERY(t_flags) | WAS_RECOVERY(t_flags)) {
+                    t_flags &= (TF_CONGRECOVERY | TF_FASTRECOVERY |
+                                TF_WASFRECOVERY | TF_WASCRECOVERY  );
+                } else {
+                    t_flags = 0;
+                }
+                translate_tflags(t_flags, t_flags_arr, sizeof(t_flags_arr));
 
                 if (strcmp(fields[DIRECTION], "o") == 0) {
                     f_basics->flow_list[idx].dir_out++;
@@ -100,10 +116,12 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                     fragment_cnt++;
                 }
                 fprintf(plot_file, "%s" TAB "%.6f" TAB "%8s" TAB
-                        "%10s" TAB "%10s" TAB "%10s" TAB "%4u"
+                        "%10s" TAB "%4u"
+                        TAB "%8u" TAB "%8u" TAB "%8u" TAB "%s"
                         "\n",
                         fields[DIRECTION], relative_time_stamp, fields[CWND],
-                        fields[SSTHRESH], fields[TH_SEQ], fields[TH_ACK], data_sz);
+                        fields[SSTHRESH], data_sz,
+                        inflight_bytes, def_pipe, old_pipe, t_flags_arr);
             }
         }
 

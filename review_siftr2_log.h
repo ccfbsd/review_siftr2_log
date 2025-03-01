@@ -109,7 +109,7 @@ enum {
     SNDWIN,         RCVWIN,         FLAG,       FLAG2,  STATE,
     SRTT,           RTO,            SND_BUF_HIWAT,      SND_BUF_CC,
     RCV_BUF_HIWAT,  RCV_BUF_CC,     INFLIGHT_BYTES,     REASS_QLEN,
-    TH_SEQ,         TH_ACK,         TCP_DATA_SZ,
+    TH_SEQ,         TH_ACK,         TCP_DATA_SZ,    DEF_PIPE,   OLD_PIPE,
     TOTAL_FIELDS,
 };
 
