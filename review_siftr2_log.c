@@ -48,8 +48,6 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     assert((0 == f_basics->flow_list[idx].dir_in) &&
            (0 == f_basics->flow_list[idx].dir_out));
 
-    memset(previous_line, 0, max_line_len);
-
     /* Restart seeking and go back to the beginning of the file */
     rewind(f_basics->file);
 
