@@ -119,10 +119,10 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     f_basics->num_lines = line_cnt;
 
     printf("input file has total lines: %u\n"
-           "input flow data_pkt_cnt: %u, average data_pkt_size: %" PRIu64 " bytes\n"
+           "input flow data_pkt_cnt: %u, average data_pkt_size: %.0f bytes\n"
            "           min data_pkt_size: %u bytes, max data_pkt_size: %u bytes\n"
            "           fragment_cnt: %u, fragment_ratio: %.3f\n",
-           line_cnt, data_pkt_cnt, (total_data_sz / data_pkt_cnt),
+           line_cnt, data_pkt_cnt, (double)total_data_sz / data_pkt_cnt,
            min_data_pkt_sz, max_data_pkt_sz,
            fragment_cnt, (double)fragment_cnt / data_pkt_cnt);
 }
