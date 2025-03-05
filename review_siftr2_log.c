@@ -31,6 +31,9 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     uint32_t max_data_pkt_sz = 0;
     uint32_t fragment_cnt = 0;
 
+    uint64_t srtt_sum = 0;
+    uint32_t srtt_min = UINT32_MAX;
+    uint32_t srtt_max = 0;
     int idx;
 
     if (!is_flowid_in_file(f_basics, flowid, &idx)) {
@@ -79,6 +82,15 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
 
             if (my_atol(fields[FLOW_ID]) == flowid) {
                 uint32_t data_sz = (uint32_t)my_atol(fields[TCP_DATA_SZ]);
+                uint32_t srtt = my_atol(fields[SRTT]);
+
+                srtt_sum += srtt;
+                if (srtt_min > srtt) {
+                    srtt_min = srtt;
+                }
+                if (srtt_max < srtt) {
+                    srtt_max = srtt;
+                }
 
                 if (strcmp(fields[DIRECTION], "o") == 0) {
                     f_basics->flow_list[idx].dir_out++;
@@ -121,10 +133,13 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     printf("input file has total lines: %u\n"
            "input flow data_pkt_cnt: %u, average data_pkt_size: %.0f bytes\n"
            "           min data_pkt_size: %u bytes, max data_pkt_size: %u bytes\n"
-           "           fragment_cnt: %u, fragment_ratio: %.3f\n",
+           "           fragment_cnt: %u, fragment_ratio: %.3f\n"
+           "           round-trip-time(rtt) min/avg/max %.2f/%.2f/%.2f ms\n",
            line_cnt, data_pkt_cnt, (double)total_data_sz / data_pkt_cnt,
            min_data_pkt_sz, max_data_pkt_sz,
-           fragment_cnt, (double)fragment_cnt / data_pkt_cnt);
+           fragment_cnt, (double)fragment_cnt / data_pkt_cnt,
+           (double)srtt_min / 1000, (double)srtt_sum / line_cnt / 1000,
+           (double)srtt_max / 1000);
 }
 
 int main(int argc, char *argv[]) {
