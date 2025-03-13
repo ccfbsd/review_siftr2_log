@@ -34,6 +34,9 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     uint64_t srtt_sum = 0;
     uint32_t srtt_min = UINT32_MAX;
     uint32_t srtt_max = 0;
+
+    uint32_t old_cwnd = 0;
+
     int idx;
 
     if (!is_flowid_in_file(f_basics, flowid, &idx)) {
@@ -81,8 +84,9 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
             }
 
             if (my_atol(fields[FLOW_ID]) == flowid) {
-                uint32_t data_sz = (uint32_t)my_atol(fields[TCP_DATA_SZ]);
+                uint32_t data_sz = my_atol(fields[TCP_DATA_SZ]);
                 uint32_t srtt = my_atol(fields[SRTT]);
+                uint32_t cwnd = my_atol(fields[CWND]);
 
                 srtt_sum += srtt;
                 if (srtt_min > srtt) {
@@ -111,11 +115,14 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                 if ((data_sz % f_basics->flow_list[idx].mss) > 0) {
                     fragment_cnt++;
                 }
-                fprintf(plot_file, "%s" TAB "%.6f" TAB "%8s" TAB
-                        "%10s" TAB "%10s" TAB "%10s" TAB "%4u"
-                        "\n",
-                        fields[DIRECTION], relative_time_stamp, fields[CWND],
-                        fields[SSTHRESH], fields[TH_SEQ], fields[TH_ACK], data_sz);
+                if (old_cwnd != cwnd) {
+                    fprintf(plot_file, "%s" TAB "%.6f" TAB "%8s" TAB
+                            "%10s" TAB "%10s" TAB "%10s" TAB "%4u"
+                            "\n",
+                            fields[DIRECTION], relative_time_stamp, fields[CWND],
+                            fields[SSTHRESH], fields[TH_SEQ], fields[TH_ACK], data_sz);
+                    old_cwnd = cwnd;
+                }
             }
         }
 
