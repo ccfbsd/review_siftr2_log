@@ -99,7 +99,7 @@ struct last_line_fields {
 /* flow list fields in the foot note of the siftr2 log */
 enum {
     FL_FLOW_ID,     FL_LOIP,        FL_LPORT,       FL_FOIP,    FL_FPORT,
-    FL_MSS,         FL_ISSACK,      FL_SNDSCALE,    FL_RCVSCALE,
+    FL_STACK_TYPE,  FL_MSS,         FL_ISSACK,      FL_SNDSCALE,    FL_RCVSCALE,
     FL_NUMRECORD,   FL_NTRANS,   TOTAL_FLOWLIST_FIELDS,
 };
 
@@ -144,6 +144,10 @@ struct flow_info {
     uint16_t    lport;                      /* local TCP port */
     uint16_t    fport;                      /* foreign TCP port */
     uint8_t     ipver;                      /* IP version */
+    enum {
+        FBSD = 0,
+        RACK = 1,
+    }           stack_type;
     uint32_t    mss;
     bool        isSACK;
     uint8_t     snd_scale;                  /* Window scaling for snd window. */
@@ -447,6 +451,7 @@ fill_flow_info(struct flow_info *target_flow, char *fields[])
         strcpy(target_flow->faddr, fields[FL_FOIP]);
         target_flow->fport = (uint16_t)my_atol(fields[FL_FPORT]);
         target_flow->ipver = INP_IPV4;
+        target_flow->stack_type = my_atol(fields[FL_STACK_TYPE]);
         target_flow->mss = (uint32_t)my_atol(fields[FL_MSS]);
         target_flow->isSACK = (bool)my_atol(fields[FL_ISSACK]);
         target_flow->snd_scale = (uint8_t)my_atol(fields[FL_SNDSCALE]);
@@ -703,11 +708,12 @@ get_last_line_stats(struct file_basic_stats *f_basics)
 static void
 print_flow_info(struct flow_info *flow_info)
 {
-    printf(" id:%10u (%s:%hu<->%s:%hu) mss:%u SACK:%d snd/rcv_scal:%hhu/%hhu "
+    printf(" id:%10u (%s:%hu<->%s:%hu) stack:%s mss:%u SACK:%d snd/rcv_scal:%hhu/%hhu "
            "cnt:%u/%u\n",
            flow_info->flowid,
            flow_info->laddr, flow_info->lport,
            flow_info->faddr, flow_info->fport,
+           (flow_info->stack_type == RACK) ? "rack" : "fbsd",
            flow_info->mss,flow_info->isSACK,
            flow_info->snd_scale,flow_info->rcv_scale,
            flow_info->record_cnt, flow_info->trans_cnt);
