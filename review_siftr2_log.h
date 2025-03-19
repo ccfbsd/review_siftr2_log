@@ -99,8 +99,8 @@ struct last_line_fields {
 /* flow list fields in the foot note of the siftr2 log */
 enum {
     FL_FLOW_ID,     FL_LOIP,        FL_LPORT,       FL_FOIP,    FL_FPORT,
-    FL_STACK_TYPE,  FL_MSS,         FL_ISSACK,      FL_SNDSCALE,    FL_RCVSCALE,
-    FL_NUMRECORD,   FL_NTRANS,   TOTAL_FLOWLIST_FIELDS,
+    FL_STACK_TYPE,  FL_TCP_CC,      FL_MSS,         FL_ISSACK,  FL_SNDSCALE,
+    FL_RCVSCALE,    FL_NUMRECORD,   FL_NTRANS,      TOTAL_FLOWLIST_FIELDS,
 };
 
 /* TCP traffic record fields */
@@ -138,16 +138,22 @@ print_pkt_info(struct pkt_info *pkt)
 }
 
 struct flow_info {
+    /* permanent info */
     uint32_t    flowid;                     /* flowid of the connection */
     char        laddr[INET6_ADDRSTRLEN];    /* local IP address */
     char        faddr[INET6_ADDRSTRLEN];    /* foreign IP address */
     uint16_t    lport;                      /* local TCP port */
     uint16_t    fport;                      /* foreign TCP port */
     uint8_t     ipver;                      /* IP version */
+    /* infrequently change info */
     enum {
         FBSD = 0,
         RACK = 1,
-    }           stack_type;
+    }           stack_type;                 /* net stack name: freebsd or rack */
+    enum {
+        CUBIC = 0,
+        NEWRENO = 1,
+    }           tcp_cc;                     /* TCP congestion control name */
     uint32_t    mss;
     bool        isSACK;
     uint8_t     snd_scale;                  /* Window scaling for snd window. */
@@ -451,7 +457,8 @@ fill_flow_info(struct flow_info *target_flow, char *fields[])
         strcpy(target_flow->faddr, fields[FL_FOIP]);
         target_flow->fport = (uint16_t)my_atol(fields[FL_FPORT]);
         target_flow->ipver = INP_IPV4;
-        target_flow->stack_type = my_atol(fields[FL_STACK_TYPE]);
+        target_flow->stack_type = (int)my_atol(fields[FL_STACK_TYPE]);
+        target_flow->tcp_cc = (int)my_atol(fields[FL_TCP_CC]);
         target_flow->mss = (uint32_t)my_atol(fields[FL_MSS]);
         target_flow->isSACK = (bool)my_atol(fields[FL_ISSACK]);
         target_flow->snd_scale = (uint8_t)my_atol(fields[FL_SNDSCALE]);
@@ -708,14 +715,15 @@ get_last_line_stats(struct file_basic_stats *f_basics)
 static void
 print_flow_info(struct flow_info *flow_info)
 {
-    printf(" id:%10u (%s:%hu<->%s:%hu) stack:%s mss:%u SACK:%d snd/rcv_scal:%hhu/%hhu "
-           "cnt:%u/%u\n",
+    printf(" id:%10u (%s:%hu<->%s:%hu) stack:%s tcp_cc:%s mss:%u SACK:%d"
+           " snd/rcv_scal:%hhu/%hhu cnt:%u/%u\n",
            flow_info->flowid,
            flow_info->laddr, flow_info->lport,
            flow_info->faddr, flow_info->fport,
            (flow_info->stack_type == RACK) ? "rack" : "fbsd",
-           flow_info->mss,flow_info->isSACK,
-           flow_info->snd_scale,flow_info->rcv_scale,
+           (flow_info->tcp_cc == CUBIC) ? "CUBIC" : "NewReno",
+           flow_info->mss, flow_info->isSACK,
+           flow_info->snd_scale, flow_info->rcv_scale,
            flow_info->record_cnt, flow_info->trans_cnt);
 }
 
