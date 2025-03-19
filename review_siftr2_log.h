@@ -109,7 +109,8 @@ enum {
     SNDWIN,         RCVWIN,         FLAG,       FLAG2,  STATE,
     SRTT,           RTO,            SND_BUF_HIWAT,      SND_BUF_CC,
     RCV_BUF_HIWAT,  RCV_BUF_CC,     INFLIGHT_BYTES,     REASS_QLEN,
-    TH_SEQ,         TH_ACK,         TCP_DATA_SZ,
+    TH_SEQ,         TH_ACK,         TCP_DATA_SZ,        FUN_NAME,
+    LINE,           W_MAX,          W_EST,              W_CUBIC,
     TOTAL_FIELDS,
 };
 
@@ -715,8 +716,8 @@ get_last_line_stats(struct file_basic_stats *f_basics)
 static void
 print_flow_info(struct flow_info *flow_info)
 {
-    printf(" id:%10u (%s:%hu<->%s:%hu) stack:%s tcp_cc:%s mss:%u SACK:%d"
-           " snd/rcv_scal:%hhu/%hhu cnt:%u/%u\n",
+    printf(" id:%10u (%s:%hu<->%s:%hu)\n"
+           "     stack:%s tcp_cc:%s mss:%u SACK:%d snd/rcv_scal:%hhu/%hhu cnt:%u/%u\n",
            flow_info->flowid,
            flow_info->laddr, flow_info->lport,
            flow_info->faddr, flow_info->fport,

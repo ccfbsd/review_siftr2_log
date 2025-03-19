@@ -35,7 +35,7 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     uint32_t srtt_min = UINT32_MAX;
     uint32_t srtt_max = 0;
 
-    uint32_t old_cwnd = 0;
+//    uint32_t old_cwnd = 0;
 
     int idx;
 
@@ -67,7 +67,8 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
 
     fprintf(plot_file,
             "##direction" TAB "relative_timestamp" TAB "cwnd" TAB
-            "ssthresh" TAB "th_seq" TAB "th_ack" TAB "data_size"
+            "ssthresh" TAB "data_size" TAB
+            "fun_name" TAB "line" TAB "W_max" TAB "W_est" TAB "W_cubic"
             "\n");
 
     while (fgets(current_line, max_line_len, f_basics->file) != NULL) {
@@ -86,7 +87,7 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
             if (my_atol(fields[FLOW_ID]) == flowid) {
                 uint32_t data_sz = my_atol(fields[TCP_DATA_SZ]);
                 uint32_t srtt = my_atol(fields[SRTT]);
-                uint32_t cwnd = my_atol(fields[CWND]);
+//                uint32_t cwnd = my_atol(fields[CWND]);
 
                 srtt_sum += srtt;
                 if (srtt_min > srtt) {
@@ -115,14 +116,18 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                 if ((data_sz % f_basics->flow_list[idx].mss) > 0) {
                     fragment_cnt++;
                 }
-                if (old_cwnd != cwnd) {
-                    fprintf(plot_file, "%s" TAB "%.6f" TAB "%8s" TAB
-                            "%10s" TAB "%10s" TAB "%10s" TAB "%4u"
-                            "\n",
-                            fields[DIRECTION], relative_time_stamp, fields[CWND],
-                            fields[SSTHRESH], fields[TH_SEQ], fields[TH_ACK], data_sz);
-                    old_cwnd = cwnd;
-                }
+//                if (old_cwnd != cwnd) {
+                fprintf(plot_file, "%s" TAB "%.6f" TAB
+                        "%8s" TAB "%10s" TAB "%4u" TAB
+                        "%30s" TAB "%4s" TAB
+                        "%8s" TAB "%8s" TAB "%8s"
+                        "\n",
+                        fields[DIRECTION], relative_time_stamp,
+                        fields[CWND], fields[SSTHRESH], data_sz,
+                        fields[FUN_NAME], fields[LINE],
+                        fields[W_MAX], fields[W_EST], fields[W_CUBIC]);
+//                    old_cwnd = cwnd;
+//                }
             }
         }
 
