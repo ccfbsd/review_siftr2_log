@@ -35,7 +35,7 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     uint32_t srtt_min = UINT32_MAX;
     uint32_t srtt_max = 0;
 
-//    uint32_t old_cwnd = 0;
+    uint32_t old_cwnd = 0;
 
     int idx;
 
@@ -87,7 +87,7 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
             if (my_atol(fields[FLOW_ID]) == flowid) {
                 uint32_t data_sz = my_atol(fields[TCP_DATA_SZ]);
                 uint32_t srtt = my_atol(fields[SRTT]);
-//                uint32_t cwnd = my_atol(fields[CWND]);
+                uint32_t cwnd = my_atol(fields[CWND]);
 
                 srtt_sum += srtt;
                 if (srtt_min > srtt) {
@@ -116,7 +116,7 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                 if ((data_sz % f_basics->flow_list[idx].mss) > 0) {
                     fragment_cnt++;
                 }
-//                if (old_cwnd != cwnd) {
+                if (old_cwnd != cwnd) {
                 fprintf(plot_file, "%s" TAB "%.6f" TAB
                         "%8s" TAB "%10s" TAB "%4u" TAB
                         "%30s" TAB "%4s" TAB
@@ -126,8 +126,8 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                         fields[CWND], fields[SSTHRESH], data_sz,
                         fields[FUN_NAME], fields[LINE],
                         fields[W_MAX], fields[W_EST], fields[W_CUBIC]);
-//                    old_cwnd = cwnd;
-//                }
+                old_cwnd = cwnd;
+                }
             }
         }
 
