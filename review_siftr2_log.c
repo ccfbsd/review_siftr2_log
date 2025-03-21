@@ -64,7 +64,7 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
 
     fprintf(plot_file,
             "##direction" TAB "relative_timestamp" TAB "cwnd" TAB
-            "ssthresh" TAB "th_seq" TAB "th_ack" TAB "data_size"
+            "ssthresh" TAB "srtt" TAB "data_size"
             "\n");
 
     while (fgets(current_line, max_line_len, f_basics->file) != NULL) {
@@ -112,10 +112,10 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                     fragment_cnt++;
                 }
                 fprintf(plot_file, "%s" TAB "%.6f" TAB "%8s" TAB
-                        "%10s" TAB "%10s" TAB "%10s" TAB "%4u"
+                        "%10s" TAB "%6s" TAB "%4u"
                         "\n",
                         fields[DIRECTION], relative_time_stamp, fields[CWND],
-                        fields[SSTHRESH], fields[TH_SEQ], fields[TH_ACK], data_sz);
+                        fields[SSTHRESH], fields[SRTT], data_sz);
             }
         }
 
