@@ -26,6 +26,7 @@ typedef uint32_t tcp_seq;
 
 enum {
     INP_IPV4 = 0x1,		// siftr2 is IPv4 only
+    EIGHT_BYTES_LEN = 8,
     MAX_LINE_LENGTH = 1000,
     MAX_NAME_LENGTH = 100,
     INET6_ADDRSTRLEN = 46,
@@ -66,10 +67,10 @@ enum {
 };
 
 struct first_line_fields {
-    char        siftrver[8];
-    char        sysname[8];
-    char        sysver[8];
-    char        ipmode[8];
+    char        siftrver[EIGHT_BYTES_LEN];
+    char        sysname[EIGHT_BYTES_LEN];
+    char        sysver[EIGHT_BYTES_LEN];
+    char        ipmode[EIGHT_BYTES_LEN];
     struct timeval enable_time;
 };
 
@@ -453,9 +454,9 @@ fill_flow_info(struct flow_info *target_flow, char *fields[])
 {
     if (target_flow != NULL) {
         target_flow->flowid = (uint32_t)my_atol(fields[FL_FLOW_ID]);
-        strcpy(target_flow->laddr, fields[FL_LOIP]);
+        snprintf(target_flow->laddr, sizeof(target_flow->laddr), "%s", fields[FL_LOIP]);
         target_flow->lport = (uint16_t)my_atol(fields[FL_LPORT]);
-        strcpy(target_flow->faddr, fields[FL_FOIP]);
+        snprintf(target_flow->faddr, sizeof(target_flow->faddr), "%s", fields[FL_FOIP]);
         target_flow->fport = (uint16_t)my_atol(fields[FL_FPORT]);
         target_flow->ipver = INP_IPV4;
         target_flow->stack_type = (int)my_atol(fields[FL_STACK_TYPE]);
@@ -608,14 +609,14 @@ get_first_line_stats(struct file_basic_stats *f_basics)
 
         f_line_stats->enable_time.tv_sec = GET_VALUE(fields[ENABLE_TIME_SECS]);
         f_line_stats->enable_time.tv_usec = GET_VALUE(fields[ENABLE_TIME_USECS]);
-        strcpy(f_line_stats->siftrver, next_sub_str_from(fields[SIFTRVER],
-                                                            EQUAL_DELIMITER));
-        strcpy(f_line_stats->sysname, next_sub_str_from(fields[SYSNAME],
-                                                           EQUAL_DELIMITER));
-        strcpy(f_line_stats->sysver, next_sub_str_from(fields[SYSVER],
-                                                          EQUAL_DELIMITER));
-        strcpy(f_line_stats->ipmode, next_sub_str_from(fields[IPMODE],
-                                                          EQUAL_DELIMITER));
+        snprintf(f_line_stats->siftrver, sizeof(f_line_stats->siftrver), "%s",
+                 next_sub_str_from(fields[SIFTRVER], EQUAL_DELIMITER));
+        snprintf(f_line_stats->sysname, sizeof(f_line_stats->sysname), "%s",
+                 next_sub_str_from(fields[SYSNAME], EQUAL_DELIMITER));
+        snprintf(f_line_stats->sysver, sizeof(f_line_stats->sysver), "%s",
+                 next_sub_str_from(fields[SYSVER], EQUAL_DELIMITER));
+        snprintf(f_line_stats->ipmode, sizeof(f_line_stats->ipmode), "%s",
+                 next_sub_str_from(fields[IPMODE], EQUAL_DELIMITER));
 
         free(firstLine);
     } else {
