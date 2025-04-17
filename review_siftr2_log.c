@@ -34,6 +34,9 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     uint64_t srtt_sum = 0;
     uint32_t srtt_min = UINT32_MAX;
     uint32_t srtt_max = 0;
+
+    uint32_t cwnd_min = UINT32_MAX;
+    uint32_t cwnd_max = 0;
     int idx;
 
     if (!is_flowid_in_file(f_basics, flowid, &idx)) {
@@ -81,8 +84,9 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
             }
 
             if (my_atol(fields[FLOW_ID]) == flowid) {
-                uint32_t data_sz = (uint32_t)my_atol(fields[TCP_DATA_SZ]);
+                uint32_t data_sz = my_atol(fields[TCP_DATA_SZ]);
                 uint32_t srtt = my_atol(fields[SRTT]);
+                uint32_t cwnd = my_atol(fields[CWND]);
 
                 srtt_sum += srtt;
                 if (srtt_min > srtt) {
@@ -90,6 +94,13 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                 }
                 if (srtt_max < srtt) {
                     srtt_max = srtt;
+                }
+
+                if (cwnd_min > cwnd) {
+                    cwnd_min = cwnd;
+                }
+                if (cwnd_max < cwnd) {
+                    cwnd_max = cwnd;
                 }
 
                 if (strcmp(fields[DIRECTION], "o") == 0) {
@@ -111,10 +122,10 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                 if ((data_sz % f_basics->flow_list[idx].mss) > 0) {
                     fragment_cnt++;
                 }
-                fprintf(plot_file, "%s" TAB "%.6f" TAB "%8s" TAB
+                fprintf(plot_file, "%s" TAB "%.6f" TAB "%8u" TAB
                         "%10s" TAB "%6s" TAB "%4u"
                         "\n",
-                        fields[DIRECTION], relative_time_stamp, fields[CWND],
+                        fields[DIRECTION], relative_time_stamp, cwnd,
                         fields[SSTHRESH], fields[SRTT], data_sz);
             }
         }
@@ -134,12 +145,14 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
            "input flow data_pkt_cnt: %u, average data_pkt_size: %.0f bytes\n"
            "           min data_pkt_size: %u bytes, max data_pkt_size: %u bytes\n"
            "           fragment_cnt: %u, fragment_ratio: %.3f\n"
-           "           round-trip-time(rtt) min/avg/max %.2f/%.2f/%.2f ms\n",
+           "           round-trip-time(rtt) min/avg/max %.2f/%.2f/%.2f ms\n"
+           "           min_cwnd: %u, max_cwnd: %u\n",
            line_cnt, data_pkt_cnt, (double)total_data_sz / data_pkt_cnt,
            min_data_pkt_sz, max_data_pkt_sz,
            fragment_cnt, (double)fragment_cnt / data_pkt_cnt,
            (double)srtt_min / 1000, (double)srtt_sum / line_cnt / 1000,
-           (double)srtt_max / 1000);
+           (double)srtt_max / 1000,
+           cwnd_min, cwnd_max);
 }
 
 int main(int argc, char *argv[]) {
