@@ -92,7 +92,7 @@ struct last_line_fields {
     uint32_t    avg_tmp_qsize;
     uint32_t    max_str_size;
     uint32_t    alq_getn_fail_cnt;
-    uint32_t    line_len;
+    uint32_t    line_len;           /* includes the null terminator */
     char        *flow_list_str;
     struct timeval disable_time;
 };
@@ -658,6 +658,7 @@ get_last_line_stats(struct file_basic_stats *f_basics)
             PERROR_FUNCTION("malloc failed for l_line_stats");
         }
 
+        /* includes the null terminator */
         l_line_stats->line_len = strlen(lastLine) + 1;
 
         /* Strip newline characters at the end */
@@ -712,6 +713,7 @@ get_last_line_stats(struct file_basic_stats *f_basics)
     }
 
     f_basics->last_line_stats = l_line_stats;
+    assert(l_line_stats->line_len >= l_line_stats->max_str_size);
 }
 
 static void
