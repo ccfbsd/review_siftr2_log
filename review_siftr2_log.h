@@ -169,6 +169,7 @@ struct file_basic_stats {
     FILE        *file;
     uint32_t    num_lines;
     uint32_t    flow_count;
+    char        prefix[MAX_NAME_LENGTH];
     double first_flow_start_time;
     struct flow_info *flow_list;
     struct first_line_fields *first_line_stats;
@@ -859,7 +860,13 @@ read_body_by_flowid(struct file_basic_stats *f_basics, uint32_t flowid)
     if (is_flowid_in_file(f_basics, flowid, &idx)) {
         char plot_file_name[MAX_NAME_LENGTH];
         // Combine the strings into the plot_file buffer
-        snprintf(plot_file_name, MAX_NAME_LENGTH, "plot_%u.txt", flowid);
+        if (strlen(f_basics->prefix) == 0) {
+            snprintf(plot_file_name, MAX_NAME_LENGTH, "plot_%u.txt", flowid);
+        } else {
+            snprintf(plot_file_name, MAX_NAME_LENGTH, "%s.%u.txt",
+                     f_basics->prefix, flowid);
+        }
+
         printf("plot_file_name: %s\n", plot_file_name);
 
         printf("++++++++++++++++++++++++++++++ summary ++++++++++++++++++++++++++++\n");

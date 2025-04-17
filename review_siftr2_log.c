@@ -162,7 +162,7 @@ int main(int argc, char *argv[]) {
     };
 
     // Process command-line arguments
-    while ((opt = getopt_long(argc, argv, "vhf:t:s:", long_opts, &opt_idx)) != -1) {
+    while ((opt = getopt_long(argc, argv, "vhf:t:p:s:", long_opts, &opt_idx)) != -1) {
         switch (opt) {
             case 'v':
                 verbose = opt_match = true;
@@ -192,6 +192,13 @@ int main(int argc, char *argv[]) {
                        "input is: %s\n", optarg);
                 f_basics.first_flow_start_time = atof(optarg);
                 break;
+            case 'p':
+                opt_match = true;
+                if (verbose) {
+                    printf("The prefix for the flow's plot file is: %s\n", optarg);
+                }
+                snprintf(f_basics.prefix, sizeof(f_basics.prefix), "%s", optarg);
+                break;
             case 's':
                 opt_match = true;
                 printf("input flow id is: %s", optarg);
@@ -205,7 +212,7 @@ int main(int argc, char *argv[]) {
                 break;
             default:
                 printf("Usage: %s [-v | -h] [-f file_name] [-t flow_start] "
-                       "[-s flow_id]\n", argv[0]);
+                       "[-p prefix] [-s flow_id]\n", argv[0]);
                 return EXIT_FAILURE;
         }
     }
@@ -213,7 +220,7 @@ int main(int argc, char *argv[]) {
     /* Handle case where no options are provided or non-option arguments */
     if (!opt_match) {
         printf("Un-expected argument!\n");
-        printf("Usage: %s [-v | -h] [-f file_name] [-t flow_start] [-s flow_id]"
+        printf("Usage: %s [-v | -h] [-f file_name] [-t flow_start] [-p prefix] [-s flow_id]"
                "\n", argv[0]);
         return EXIT_FAILURE;
     }
