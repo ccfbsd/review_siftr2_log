@@ -35,6 +35,7 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     uint32_t srtt_min = UINT32_MAX;
     uint32_t srtt_max = 0;
 
+    uint64_t cwnd_sum = 0;
     uint32_t cwnd_min = UINT32_MAX;
     uint32_t cwnd_max = 0;
     int idx;
@@ -96,6 +97,7 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                     srtt_max = srtt;
                 }
 
+                cwnd_sum += cwnd;
                 if (cwnd_min > cwnd) {
                     cwnd_min = cwnd;
                 }
@@ -142,17 +144,15 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     f_basics->num_lines = line_cnt;
 
     printf("input file has total lines: %u\n"
-           "input flow data_pkt_cnt: %u, average data_pkt_size: %.0f bytes\n"
-           "           min data_pkt_size: %u bytes, max data_pkt_size: %u bytes\n"
-           "           fragment_cnt: %u, fragment_ratio: %.3f\n"
-           "           round-trip-time(rtt) min/avg/max %.2f/%.2f/%.2f ms\n"
-           "           min_cwnd: %u, max_cwnd: %u\n",
-           line_cnt, data_pkt_cnt, (double)total_data_sz / data_pkt_cnt,
-           min_data_pkt_sz, max_data_pkt_sz,
-           fragment_cnt, (double)fragment_cnt / data_pkt_cnt,
-           (double)srtt_min / 1000, (double)srtt_sum / line_cnt / 1000,
-           (double)srtt_max / 1000,
-           cwnd_min, cwnd_max);
+           "input flow data_pkt_cnt: %u, fragment_cnt: %u, fragment_ratio: %.3f\n"
+           "           avg_data_pkt: %.0f, min_data_pkt: %u, max_data_pkt: %u bytes\n"
+           "           avg_srtt: %" PRIu64 ", min_srtt: %u, max_srtt: %u µs\n"
+           "           avg_cwnd: %" PRIu64 ", min_cwnd: %u, max_cwnd: %u bytes\n",
+           line_cnt,
+           data_pkt_cnt, fragment_cnt, (double)fragment_cnt / data_pkt_cnt,
+           (double)total_data_sz / data_pkt_cnt, min_data_pkt_sz, max_data_pkt_sz,
+           srtt_sum / line_cnt, srtt_min, srtt_max,
+           cwnd_sum / line_cnt, cwnd_min, cwnd_max);
 }
 
 int main(int argc, char *argv[]) {
