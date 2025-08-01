@@ -84,10 +84,10 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                 relative_time_stamp = atof(fields[TIMESTAMP]) - first_flow_start_time;
             }
 
-            if (my_atol(fields[FLOW_ID]) == flowid) {
-                uint32_t data_sz = my_atol(fields[TCP_DATA_SZ]);
-                uint32_t srtt = my_atol(fields[SRTT]);
-                uint32_t cwnd = my_atol(fields[CWND]);
+            if (my_atol(fields[FLOW_ID], BASE16) == flowid) {
+                uint32_t data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
+                uint32_t srtt = my_atol(fields[SRTT], BASE10);
+                uint32_t cwnd = my_atol(fields[CWND], BASE10);
 
                 srtt_sum += srtt;
                 if (srtt_min > srtt) {
@@ -221,7 +221,7 @@ int main(int argc, char *argv[]) {
                 } else {
                     printf("\n");
                 }
-                read_body_by_flowid(&f_basics, my_atol(optarg));
+                read_body_by_flowid(&f_basics, my_atol(optarg, BASE16));
                 break;
             default:
                 printf("Usage: %s [-v | -h] [-f file_name] [-t flow_start] "

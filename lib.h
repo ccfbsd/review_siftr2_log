@@ -13,6 +13,8 @@
 #define TAB         TAB_DELIMITER
 #define EQUAL_DELIMITER     "="
 #define SEMICOLON_DELIMITER     ";"
+#define BASE10              10
+#define BASE16              16
 
 #define PERROR_FUNCTION(msg) \
         do {                                                                \
@@ -21,7 +23,7 @@
             perror(msg);                                                    \
         } while(0)
 
-#define GET_VALUE(field)    my_atol(next_sub_str_from(field, EQUAL_DELIMITER));
+#define GET_VALUE(field)    my_atol(next_sub_str_from(field, EQUAL_DELIMITER), BASE10);
 
 typedef uint32_t tcp_seq;
 
@@ -315,12 +317,12 @@ print_cwd(void)
 }
 
 long int
-my_atol(const char *str)
+my_atol(const char *str, int base)
 {
     char *endptr;
     long int number;
     errno = 0;  // To distinguish success/failure after the call
-    number = strtol(str, &endptr, 10);
+    number = strtol(str, &endptr, base);
 
     // Check for conversion errors
     if (errno == ERANGE) {

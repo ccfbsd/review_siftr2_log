@@ -138,20 +138,20 @@ void
 fill_flow_info(struct flow_info *target_flow, char *fields[])
 {
     if (target_flow != NULL) {
-        target_flow->flowid = (uint32_t)my_atol(fields[FL_FLOW_ID]);
+        target_flow->flowid = (uint32_t)my_atol(fields[FL_FLOW_ID], BASE16);
         snprintf(target_flow->laddr, sizeof(target_flow->laddr), "%s", fields[FL_LOIP]);
-        target_flow->lport = (uint16_t)my_atol(fields[FL_LPORT]);
+        target_flow->lport = (uint16_t)my_atol(fields[FL_LPORT], BASE10);
         snprintf(target_flow->faddr, sizeof(target_flow->faddr), "%s", fields[FL_FOIP]);
-        target_flow->fport = (uint16_t)my_atol(fields[FL_FPORT]);
+        target_flow->fport = (uint16_t)my_atol(fields[FL_FPORT], BASE10);
         target_flow->ipver = INP_IPV4;
-        target_flow->stack_type = (int)my_atol(fields[FL_STACK_TYPE]);
-        target_flow->tcp_cc = (int)my_atol(fields[FL_TCP_CC]);
-        target_flow->mss = (uint32_t)my_atol(fields[FL_MSS]);
-        target_flow->isSACK = (bool)my_atol(fields[FL_ISSACK]);
-        target_flow->snd_scale = (uint8_t)my_atol(fields[FL_SNDSCALE]);
-        target_flow->rcv_scale = (uint8_t)my_atol(fields[FL_RCVSCALE]);
-        target_flow->record_cnt = (uint32_t)my_atol(fields[FL_NUMRECORD]);
-        target_flow->trans_cnt = (uint32_t)my_atol(fields[FL_NTRANS]);
+        target_flow->stack_type = (int)my_atol(fields[FL_STACK_TYPE], BASE10);
+        target_flow->tcp_cc = (int)my_atol(fields[FL_TCP_CC], BASE10);
+        target_flow->mss = (uint32_t)my_atol(fields[FL_MSS], BASE10);
+        target_flow->isSACK = (bool)my_atol(fields[FL_ISSACK], BASE10);
+        target_flow->snd_scale = (uint8_t)my_atol(fields[FL_SNDSCALE], BASE10);
+        target_flow->rcv_scale = (uint8_t)my_atol(fields[FL_RCVSCALE], BASE10);
+        target_flow->record_cnt = (uint32_t)my_atol(fields[FL_NUMRECORD], BASE10);
+        target_flow->trans_cnt = (uint32_t)my_atol(fields[FL_NTRANS], BASE10);
         target_flow->dir_in = 0;
         target_flow->dir_out = 0;
         target_flow->is_info_set = true;
@@ -356,7 +356,7 @@ get_last_line_stats(struct file_basic_stats *f_basics)
 static void
 print_flow_info(struct flow_info *flow_info)
 {
-    printf(" id:%10u (%s:%hu<->%s:%hu) stack:%s tcp_cc:%s mss:%u SACK:%d"
+    printf(" id:%08x (%s:%hu<->%s:%hu) stack:%s tcp_cc:%s mss:%u SACK:%d"
            " snd/rcv_scal:%hhu/%hhu cnt:%u/%u\n",
            flow_info->flowid,
            flow_info->laddr, flow_info->lport,
@@ -501,16 +501,16 @@ read_body_by_flowid(struct file_basic_stats *f_basics, uint32_t flowid)
         char plot_file_name[MAX_NAME_LENGTH];
         // Combine the strings into the plot_file buffer
         if (strlen(f_basics->prefix) == 0) {
-            snprintf(plot_file_name, MAX_NAME_LENGTH, "plot_%u.txt", flowid);
+            snprintf(plot_file_name, MAX_NAME_LENGTH, "plot_%08x.txt", flowid);
         } else {
-            snprintf(plot_file_name, MAX_NAME_LENGTH, "%s.%u.txt",
+            snprintf(plot_file_name, MAX_NAME_LENGTH, "%s.%08x.txt",
                      f_basics->prefix, flowid);
         }
 
         printf("plot_file_name: %s\n", plot_file_name);
 
         printf("++++++++++++++++++++++++++++++ summary ++++++++++++++++++++++++++++\n");
-        printf("  %s:%hu->%s:%hu flowid: %u\n",
+        printf("  %s:%hu->%s:%hu flowid: %08x\n",
                f_basics->flow_list[idx].laddr, f_basics->flow_list[idx].lport,
                f_basics->flow_list[idx].faddr, f_basics->flow_list[idx].fport,
                flowid);
