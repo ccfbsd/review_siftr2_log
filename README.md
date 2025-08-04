@@ -15,24 +15,45 @@ clang -std=c2x -O3 -Wall -Wextra -I. -o review_siftr2_log review_siftr2_log.c
   
 run examples:  
   
-% ./review_siftr2_log -f n1fbsd.cubic.siftr2  
-input file name: n1fbsd.cubic.siftr2  
-siftr version: 2.1  
-flow id list:  
- id:3716594737 (192.168.50.249:63114<->192.168.50.89:5201) mss:1448 SACK:1 snd/rcv_scal:12/12 cnt:13/23  
- id: 521742461 (192.168.50.249:5205<->192.168.50.89:5201) mss:1448 SACK:1 snd/rcv_scal:12/12 cnt:34461/68272  
- id:2691658032 (192.168.50.249:5202<->192.168.50.89:5201) mss:1448 SACK:1 snd/rcv_scal:12/12 cnt:35338/70059  
- id:4223565833 (192.168.50.249:5201<->192.168.50.89:5201) mss:1448 SACK:1 snd/rcv_scal:12/12 cnt:36454/72357  
- id:3595991189 (192.168.50.249:5207<->192.168.50.89:5201) mss:1448 SACK:1 snd/rcv_scal:12/12 cnt:37111/73628  
- id:2374470060 (192.168.50.249:5204<->192.168.50.89:5201) mss:1448 SACK:1 snd/rcv_scal:12/12 cnt:38470/76290  
- id: 460584418 (192.168.50.249:5208<->192.168.50.89:5201) mss:1448 SACK:1 snd/rcv_scal:12/12 cnt:39762/78922  
- id:1154013508 (192.168.50.249:5206<->192.168.50.89:5201) mss:1448 SACK:1 snd/rcv_scal:12/12 cnt:40394/80205  
- id: 854708449 (192.168.50.249:5203<->192.168.50.89:5201) mss:1448 SACK:1 snd/rcv_scal:12/12 cnt:46418/92295  
-  
-starting_time: 2025-01-29 14:03:55.245371 (1738177435.245371)  
-ending_time: 2025-01-29 14:04:02.495665 (1738177442.495665)  
-log duration: 7.25 seconds  
-  
-this program execution time: 0.003 seconds  
+% ./review_siftr2_log -f siftr2.log   
+input file name: siftr2.log   
+siftr version: 2.2   
+flow id list:   
+ id:afc62e9e (192.168.50.14:5001<->192.168.50.14:46578) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:946495/946495   
+ id:c5c22f15 (192.168.50.14:46578<->192.168.50.14:5001) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:946496/946496   
+ id:c17d41af (192.168.50.14:5001<->192.168.50.14:30425) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:946991/946991   
+ id:592641ae (192.168.50.14:30425<->192.168.50.14:5001) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:946992/946992   
+   
+starting_time: 2025-08-04 16:04:17.037345 (1754337857.037345)   
+ending_time: 2025-08-04 16:04:27.086014 (1754337867.086014)   
+log duration: 10.05 seconds   
+   
+this program execution time: 0.000 seconds  
 %   
   
+% ./review_siftr2_log -f siftr2.log -s c5c22f15  
+input file name: siftr2.log  
+siftr version: 2.2  
+flow id list:  
+ id:afc62e9e (192.168.50.14:5001<->192.168.50.14:46578) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:946495/946495  
+ id:c5c22f15 (192.168.50.14:46578<->192.168.50.14:5001) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:946496/946496  
+ id:c17d41af (192.168.50.14:5001<->192.168.50.14:30425) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:946991/946991  
+ id:592641ae (192.168.50.14:30425<->192.168.50.14:5001) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:946992/946992  
+  
+starting_time: 2025-08-04 16:04:17.037345 (1754337857.037345)  
+ending_time: 2025-08-04 16:04:27.086014 (1754337867.086014)  
+log duration: 10.05 seconds  
+input flow id is: c5c22f15  
+plot_file_name: plot_c5c22f15.txt  
+++++++++++++++++++++++++++++++ summary ++++++++++++++++++++++++++++  
+  192.168.50.14:46578->192.168.50.14:5001 flowid: c5c22f15  
+input file has total lines: 3786976  
+input flow data_pkt_cnt: 630859, fragment_cnt: 20, fragment_ratio: 0.000  
+           avg_data_pkt: 16332, min_data_pkt: 28, max_data_pkt: 16332 bytes  
+           avg_srtt: 774, min_srtt: 2187, max_srtt: 40000 µs  
+           avg_cwnd: 353460, min_cwnd: 32664, max_cwnd: 1421003 bytes  
+           has 946496 useful records (630860 outputs, 315636 inputs)  
+  
+this program execution time: 1.974 seconds  
+  
+%  
