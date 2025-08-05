@@ -13,8 +13,6 @@
 #define TAB         TAB_DELIMITER
 #define EQUAL_DELIMITER     "="
 #define SEMICOLON_DELIMITER     ";"
-#define BASE10              10
-#define BASE16              16
 
 #define PERROR_FUNCTION(msg) \
         do {                                                                \
@@ -30,6 +28,8 @@ typedef uint32_t tcp_seq;
 enum {
     INP_IPV4 = 0x1,     // siftr2 is IPv4 only
     EIGHT_BYTES_LEN = 8,
+    BASE10          = 10,
+    BASE16          = 16,
     MAX_LINE_LENGTH = 1000,
     MAX_NAME_LENGTH = 100,
     INET6_ADDRSTRLEN = 46,
