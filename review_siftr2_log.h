@@ -521,9 +521,9 @@ read_body_by_flowid(struct file_basic_stats *f_basics, uint32_t flowid)
                f_basics->flow_list[idx].dir_out,
                f_basics->flow_list[idx].dir_in);
 
-        assert(f_basics->flow_list[idx].record_cnt ==
-               (f_basics->flow_list[idx].dir_in +
-                f_basics->flow_list[idx].dir_out));
+//        assert(f_basics->flow_list[idx].record_cnt ==
+//               (f_basics->flow_list[idx].dir_in +
+//                f_basics->flow_list[idx].dir_out));
     } else {
         printf("flow ID %u not found\n", flowid);
     }

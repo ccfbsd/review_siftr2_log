@@ -19,7 +19,7 @@ endif
 #  -g		adds debugging information to the executable file
 #  -Wall	turns on most, but not all, compiler warnings
 #  -Wextra	additional warnings not covered by -Wall
-CFLAGS = -std=c23 -O3 -Wall -Wextra -I.
+CFLAGS = -std=c23 -O3 -Wall -Wextra -pthread -I.
 RM = rm -f
 
 

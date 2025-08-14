@@ -8,149 +8,168 @@
  ============================================================================
  */
 #include "review_siftr2_log.h"
-
 #include <getopt.h>
+#include "threads_compat.h"
 
 bool verbose = false;
 
-void
-stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
-                     char plot_file_name[])
-{
-    uint32_t line_cnt = 0;
-    uint32_t max_line_len = f_basics->last_line_stats->line_len;
-    char current_line[max_line_len];
-    char previous_line[max_line_len] = {};
+typedef struct {
+    char direction[8];
+    double rel_time;
+    uint32_t cwnd;
+    char ssthresh[32];
+    char srtt[32];
+    uint32_t data_sz;
+} record_t;
 
-    double first_flow_start_time = f_basics->first_flow_start_time;
-    double relative_time_stamp = 0;
+#define QUEUE_SIZE 1024
 
-    uint32_t data_pkt_cnt = 0;
-    uint64_t total_data_sz = 0;
-    uint32_t min_data_pkt_sz = UINT32_MAX;
-    uint32_t max_data_pkt_sz = 0;
-    uint32_t fragment_cnt = 0;
+typedef struct {
+    record_t buffer[QUEUE_SIZE];
+    size_t head, tail;
+    bool done;
+    mtx_t mutex;
+    cnd_t cond_nonempty;
+    cnd_t cond_nonfull;
+} queue_t;
 
-    uint64_t srtt_sum = 0;
-    uint32_t srtt_min = UINT32_MAX;
-    uint32_t srtt_max = 0;
+void queue_init(queue_t *q) {
+    q->head = q->tail = 0;
+    q->done = false;
+    mtx_init(&q->mutex, mtx_plain);
+    cnd_init(&q->cond_nonempty);
+    cnd_init(&q->cond_nonfull);
+}
 
-    uint64_t cwnd_sum = 0;
-    uint32_t cwnd_min = UINT32_MAX;
-    uint32_t cwnd_max = 0;
-    int idx;
-
-    if (!is_flowid_in_file(f_basics, flowid, &idx)) {
-        printf("%s:%u: flow ID %u not found\n", __FUNCTION__, __LINE__, flowid);
-        PERROR_FUNCTION("Failed to open sack plot file for writing");
-        return;
+bool queue_push(queue_t *q, record_t *rec) {
+    mtx_lock(&q->mutex);
+    while (((q->tail + 1) % QUEUE_SIZE) == q->head) {
+        cnd_wait(&q->cond_nonfull, &q->mutex);
     }
-    assert((0 == f_basics->flow_list[idx].dir_in) &&
-           (0 == f_basics->flow_list[idx].dir_out));
+    q->buffer[q->tail] = *rec;
+    q->tail = (q->tail + 1) % QUEUE_SIZE;
+    cnd_signal(&q->cond_nonempty);
+    mtx_unlock(&q->mutex);
+    return true;
+}
 
-    /* Restart seeking and go back to the beginning of the file */
-    rewind(f_basics->file);
-
-    /* Read and discard the first line */
-    if(fgets(current_line, max_line_len, f_basics->file) == NULL) {
-        PERROR_FUNCTION("Failed to read first line");
-        return;
+bool queue_pop(queue_t *q, record_t *rec) {
+    mtx_lock(&q->mutex);
+    while (q->head == q->tail && !q->done) {
+        cnd_wait(&q->cond_nonempty, &q->mutex);
     }
-    line_cnt++; // Increment line counter, now shall be at the 2nd line
-
-    FILE *plot_file = fopen(plot_file_name, "w");
-    if (!plot_file) {
-        PERROR_FUNCTION("Failed to open plot_file_name for writing");
-        return;
+    if (q->head == q->tail && q->done) {
+        mtx_unlock(&q->mutex);
+        return false;
     }
+    *rec = q->buffer[q->head];
+    q->head = (q->head + 1) % QUEUE_SIZE;
+    cnd_signal(&q->cond_nonfull);
+    mtx_unlock(&q->mutex);
+    return true;
+}
 
-    fprintf(plot_file,
-            "##direction" TAB "relative_timestamp" TAB "cwnd" TAB
-            "ssthresh" TAB "srtt" TAB "data_size"
-            "\n");
+int reader_thread(void *arg) {
+    struct {
+        struct file_basic_stats *f_basics;
+        uint32_t flowid;
+        queue_t *queue;
+    } *ctx = arg;
 
-    while (fgets(current_line, max_line_len, f_basics->file) != NULL) {
+    char current_line[ctx->f_basics->last_line_stats->line_len];
+    char previous_line[ctx->f_basics->last_line_stats->line_len] = {};
+    double first_flow_start_time = ctx->f_basics->first_flow_start_time;
+
+    rewind(ctx->f_basics->file);
+    fgets(current_line, sizeof(current_line), ctx->f_basics->file); // skip header
+
+    while (fgets(current_line, sizeof(current_line), ctx->f_basics->file)) {
         if (previous_line[0] != '\0') {
             char *fields[TOTAL_FIELDS];
-
             fill_fields_from_line(fields, previous_line, BODY);
 
             if (first_flow_start_time == 0) {
                 first_flow_start_time = atof(fields[TIMESTAMP]);
-                relative_time_stamp = 0;
-            } else {
-                relative_time_stamp = atof(fields[TIMESTAMP]) - first_flow_start_time;
             }
+            double rel_time = atof(fields[TIMESTAMP]) - first_flow_start_time;
 
-            if (my_atol(fields[FLOW_ID], BASE16) == flowid) {
-                uint32_t data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
-                uint32_t srtt = my_atol(fields[SRTT], BASE10);
-                uint32_t cwnd = my_atol(fields[CWND], BASE10);
-
-                srtt_sum += srtt;
-                if (srtt_min > srtt) {
-                    srtt_min = srtt;
-                }
-                if (srtt_max < srtt) {
-                    srtt_max = srtt;
-                }
-
-                cwnd_sum += cwnd;
-                if (cwnd_min > cwnd) {
-                    cwnd_min = cwnd;
-                }
-                if (cwnd_max < cwnd) {
-                    cwnd_max = cwnd;
-                }
-
-                if (strcmp(fields[DIRECTION], "o") == 0) {
-                    f_basics->flow_list[idx].dir_out++;
-                } else {
-                    f_basics->flow_list[idx].dir_in++;
-                }
-
-                if (data_sz > 0) {
-                    total_data_sz += data_sz;
-                    data_pkt_cnt++;
-                    if (min_data_pkt_sz > data_sz) {
-                        min_data_pkt_sz = data_sz;
-                    }
-                    if (max_data_pkt_sz < data_sz) {
-                        max_data_pkt_sz = data_sz;
-                    }
-                }
-                if ((data_sz % f_basics->flow_list[idx].mss) > 0) {
-                    fragment_cnt++;
-                }
-                fprintf(plot_file, "%s" TAB "%.6f" TAB "%8u" TAB
-                        "%10s" TAB "%6s" TAB "%4u"
-                        "\n",
-                        fields[DIRECTION], relative_time_stamp, cwnd,
-                        fields[SSTHRESH], fields[SRTT], data_sz);
+            if (my_atol(fields[FLOW_ID], BASE16) == ctx->flowid) {
+                record_t rec;
+                snprintf(rec.direction, sizeof(rec.direction), "%s", fields[DIRECTION]);
+                rec.rel_time = rel_time;
+                rec.cwnd = my_atol(fields[CWND], BASE10);
+                snprintf(rec.ssthresh, sizeof(rec.ssthresh), "%s", fields[SSTHRESH]);
+                snprintf(rec.srtt, sizeof(rec.srtt), "%s", fields[SRTT]);
+                rec.data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
+                queue_push(ctx->queue, &rec);
             }
         }
-
-        line_cnt++;
-        /* Update the previous line to be the current line. */
         strcpy(previous_line, current_line);
     }
 
-    if (fclose(plot_file) == EOF) {
-        PERROR_FUNCTION("Failed to close plot_file");
+    mtx_lock(&ctx->queue->mutex);
+    ctx->queue->done = true;
+    cnd_broadcast(&ctx->queue->cond_nonempty);
+    mtx_unlock(&ctx->queue->mutex);
+
+    return 0;
+}
+
+int writer_thread(void *arg) {
+    struct {
+        FILE *plot_file;
+        queue_t *queue;
+    } *ctx = arg;
+
+    record_t rec;
+    while (queue_pop(ctx->queue, &rec)) {
+        fprintf(ctx->plot_file, "%s" TAB "%.6f" TAB "%8u" TAB
+                "%10s" TAB "%6s" TAB "%4u\n",
+                rec.direction, rec.rel_time, rec.cwnd,
+                rec.ssthresh, rec.srtt, rec.data_sz);
+    }
+    return 0;
+}
+
+void stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
+                          char plot_file_name[])
+{
+    int idx;
+    if (!is_flowid_in_file(f_basics, flowid, &idx)) {
+        fprintf(stderr, "flow ID %u not found\n", flowid);
+        return;
     }
 
-    f_basics->num_lines = line_cnt;
+    FILE *plot_file = fopen(plot_file_name, "w");
+    if (!plot_file) {
+        perror("open plot file");
+        return;
+    }
+    fprintf(plot_file, "##direction" TAB "relative_timestamp" TAB "cwnd" TAB
+            "ssthresh" TAB "srtt" TAB "data_size\n");
 
-    printf("input file has total lines: %u\n"
-           "input flow data_pkt_cnt: %u, fragment_cnt: %u, fragment_ratio: %.3f\n"
-           "           avg_data_pkt: %.0f, min_data_pkt: %u, max_data_pkt: %u bytes\n"
-           "           avg_srtt: %" PRIu64 ", min_srtt: %u, max_srtt: %u µs\n"
-           "           avg_cwnd: %" PRIu64 ", min_cwnd: %u, max_cwnd: %u bytes\n",
-           line_cnt,
-           data_pkt_cnt, fragment_cnt, (double)fragment_cnt / data_pkt_cnt,
-           (double)total_data_sz / data_pkt_cnt, min_data_pkt_sz, max_data_pkt_sz,
-           srtt_sum / line_cnt, srtt_min, srtt_max,
-           cwnd_sum / line_cnt, cwnd_min, cwnd_max);
+    queue_t queue;
+    queue_init(&queue);
+
+    struct {
+        struct file_basic_stats *f_basics;
+        uint32_t flowid;
+        queue_t *queue;
+    } reader_ctx = {f_basics, flowid, &queue};
+
+    struct {
+        FILE *plot_file;
+        queue_t *queue;
+    } writer_ctx = {plot_file, &queue};
+
+    thrd_t t_reader, t_writer;
+    thrd_create(&t_reader, reader_thread, &reader_ctx);
+    thrd_create(&t_writer, writer_thread, &writer_ctx);
+
+    thrd_join(t_reader, NULL);
+    thrd_join(t_writer, NULL);
+
+    fclose(plot_file);
 }
 
 int main(int argc, char *argv[]) {
