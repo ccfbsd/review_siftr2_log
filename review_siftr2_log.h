@@ -47,6 +47,7 @@ enum {
     AVG_TMP_QSIZE,
     MAX_STR_SIZE,
     ALQ_GETN_FAIL_CNT,
+    GEN_FLOWID_CNT,
     FLOW_LIST,
     TOTAL_LAST_LINE_FIELDS,
 };
@@ -57,6 +58,7 @@ struct last_line_fields {
     uint32_t    avg_tmp_qsize;
     uint32_t    max_str_size;
     uint32_t    alq_getn_fail_cnt;
+    uint32_t    gen_flowid_cnt;
     uint32_t    line_len;           /* includes the null terminator */
     char        *flow_list_str;
     struct timeval disable_time;
@@ -320,6 +322,7 @@ get_last_line_stats(struct file_basic_stats *f_basics)
         l_line_stats->avg_tmp_qsize = GET_VALUE(fields[AVG_TMP_QSIZE]);
         l_line_stats->max_str_size = GET_VALUE(fields[MAX_STR_SIZE]);
         l_line_stats->alq_getn_fail_cnt = GET_VALUE(fields[ALQ_GETN_FAIL_CNT]);
+        l_line_stats->gen_flowid_cnt = GET_VALUE(fields[GEN_FLOWID_CNT]);
 
         char *sub_str = next_sub_str_from(fields[FLOW_LIST], EQUAL_DELIMITER);
 
@@ -338,7 +341,7 @@ get_last_line_stats(struct file_basic_stats *f_basics)
     if (verbose) {
         printf("disable_time: %ld.%ld, global_flow_cnt: %u, max_tmp_qsize: %u, "
                "avg_tmp_qsize: %u, max_str_size: %u, alq_getn_fail_cnt: %u, "
-               "flow_list: %s\n\n",
+               "gen_flowid_cnt: %u, flow_list: %s\n\n",
                (long)l_line_stats->disable_time.tv_sec,
                (long)l_line_stats->disable_time.tv_usec,
                l_line_stats->global_flow_cnt,
@@ -346,6 +349,7 @@ get_last_line_stats(struct file_basic_stats *f_basics)
                l_line_stats->avg_tmp_qsize,
                l_line_stats->max_str_size,
                l_line_stats->alq_getn_fail_cnt,
+               l_line_stats->gen_flowid_cnt,
                l_line_stats->flow_list_str);
     }
 
