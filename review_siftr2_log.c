@@ -14,12 +14,12 @@
 bool verbose = false;
 
 typedef struct {
-    char direction[8];
+    char direction[2];
     double rel_time;
-    uint32_t cwnd;
-    char ssthresh[32];
-    char srtt[32];
-    uint32_t data_sz;
+    char cwnd[11];
+    char ssthresh[11];
+    char srtt[7];
+    char data_sz[5];
 } record_t;
 
 #define QUEUE_SIZE 1024
@@ -97,10 +97,10 @@ int reader_thread(void *arg) {
                 record_t rec;
                 snprintf(rec.direction, sizeof(rec.direction), "%s", fields[DIRECTION]);
                 rec.rel_time = rel_time;
-                rec.cwnd = my_atol(fields[CWND], BASE10);
+                snprintf(rec.cwnd, sizeof(rec.cwnd), "%s", fields[CWND]);
                 snprintf(rec.ssthresh, sizeof(rec.ssthresh), "%s", fields[SSTHRESH]);
                 snprintf(rec.srtt, sizeof(rec.srtt), "%s", fields[SRTT]);
-                rec.data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
+                snprintf(rec.data_sz, sizeof(rec.data_sz), "%s", fields[TCP_DATA_SZ]);
                 queue_push(ctx->queue, &rec);
             }
         }
@@ -123,8 +123,8 @@ int writer_thread(void *arg) {
 
     record_t rec;
     while (queue_pop(ctx->queue, &rec)) {
-        fprintf(ctx->plot_file, "%s" TAB "%.6f" TAB "%8u" TAB
-                "%10s" TAB "%6s" TAB "%4u\n",
+        fprintf(ctx->plot_file, "%s" TAB "%.6f" TAB "%8s" TAB
+                "%10s" TAB "%6s" TAB "%4s\n",
                 rec.direction, rec.rel_time, rec.cwnd,
                 rec.ssthresh, rec.srtt, rec.data_sz);
     }
