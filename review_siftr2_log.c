@@ -81,7 +81,11 @@ int reader_thread(void *arg) {
     double first_flow_start_time = ctx->f_basics->first_flow_start_time;
 
     rewind(ctx->f_basics->file);
-    fgets(current_line, sizeof(current_line), ctx->f_basics->file); // skip header
+    /* Read and discard the first line */
+    if(fgets(current_line, sizeof(current_line), ctx->f_basics->file) == NULL) {
+        PERROR_FUNCTION("Failed to read first line");
+        return EXIT_FAILURE;
+    }
 
     while (fgets(current_line, sizeof(current_line), ctx->f_basics->file)) {
         if (previous_line[0] != '\0') {
