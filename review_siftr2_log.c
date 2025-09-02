@@ -22,7 +22,7 @@ typedef struct {
     char data_sz[5];
 } record_t;
 
-#define QUEUE_SIZE 1024
+#define QUEUE_SIZE 102400
 
 typedef struct {
     record_t buffer[QUEUE_SIZE];
