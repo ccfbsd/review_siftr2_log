@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "lib.h"
@@ -113,7 +114,7 @@ struct file_basic_stats {
     FILE        *file;
     uint32_t    num_lines;
     uint32_t    flow_count;
-    char        prefix[MAX_NAME_LENGTH];
+    char        prefix[MAX_NAME_LENGTH - 20];
     double first_flow_start_time;
     struct flow_info *flow_list;
     struct first_line_fields *first_line_stats;
