@@ -8,66 +8,9 @@
  ============================================================================
  */
 #include "review_siftr2_log.h"
-#include <getopt.h>
 #include "threads_compat.h"
 
 bool verbose = false;
-
-typedef struct {
-    char direction[2];
-    double rel_time;
-    char cwnd[11];
-    char ssthresh[11];
-    char srtt[7];
-    char data_sz[5];
-} record_t;
-
-#define QUEUE_SIZE 102400
-
-typedef struct {
-    record_t buffer[QUEUE_SIZE];
-    size_t head, tail;
-    bool done;
-    mtx_t mutex;
-    cnd_t cond_nonempty;
-    cnd_t cond_nonfull;
-} queue_t;
-
-void queue_init(queue_t *q) {
-    q->head = q->tail = 0;
-    q->done = false;
-    mtx_init(&q->mutex, mtx_plain);
-    cnd_init(&q->cond_nonempty);
-    cnd_init(&q->cond_nonfull);
-}
-
-bool queue_push(queue_t *q, record_t *rec) {
-    mtx_lock(&q->mutex);
-    while (((q->tail + 1) % QUEUE_SIZE) == q->head) {
-        cnd_wait(&q->cond_nonfull, &q->mutex);
-    }
-    q->buffer[q->tail] = *rec;
-    q->tail = (q->tail + 1) % QUEUE_SIZE;
-    cnd_signal(&q->cond_nonempty);
-    mtx_unlock(&q->mutex);
-    return true;
-}
-
-bool queue_pop(queue_t *q, record_t *rec) {
-    mtx_lock(&q->mutex);
-    while (q->head == q->tail && !q->done) {
-        cnd_wait(&q->cond_nonempty, &q->mutex);
-    }
-    if (q->head == q->tail && q->done) {
-        mtx_unlock(&q->mutex);
-        return false;
-    }
-    *rec = q->buffer[q->head];
-    q->head = (q->head + 1) % QUEUE_SIZE;
-    cnd_signal(&q->cond_nonfull);
-    mtx_unlock(&q->mutex);
-    return true;
-}
 
 int reader_thread(void *arg) {
     struct {
@@ -105,17 +48,18 @@ int reader_thread(void *arg) {
                 snprintf(rec.ssthresh, sizeof(rec.ssthresh), "%s", fields[SSTHRESH]);
                 snprintf(rec.srtt, sizeof(rec.srtt), "%s", fields[SRTT]);
                 snprintf(rec.data_sz, sizeof(rec.data_sz), "%s", fields[TCP_DATA_SZ]);
-                queue_push(ctx->queue, &rec);
+
+                // Try to push; if full, yield briefly (lock-free backoff)
+                while (!queue_push(ctx->queue, &rec)) {
+                    sched_yield(); // or nanosleep for gentler backoff
+                }
             }
         }
         strcpy(previous_line, current_line);
     }
 
-    mtx_lock(&ctx->queue->mutex);
-    ctx->queue->done = true;
-    cnd_broadcast(&ctx->queue->cond_nonempty);
-    mtx_unlock(&ctx->queue->mutex);
-
+    // Signal completion
+    queue_set_done(ctx->queue);
     return 0;
 }
 
@@ -126,11 +70,18 @@ int writer_thread(void *arg) {
     } *ctx = arg;
 
     record_t rec;
-    while (queue_pop(ctx->queue, &rec)) {
-        fprintf(ctx->plot_file, "%s" TAB "%.6f" TAB "%8s" TAB
-                "%10s" TAB "%6s" TAB "%4s\n",
-                rec.direction, rec.rel_time, rec.cwnd,
-                rec.ssthresh, rec.srtt, rec.data_sz);
+    for (;;) {
+        if (queue_pop(ctx->queue, &rec)) {
+            fprintf(ctx->plot_file, "%s" TAB "%.6f" TAB "%8s" TAB
+                    "%10s" TAB "%6s" TAB "%4s\n",
+                    rec.direction, rec.rel_time, rec.cwnd,
+                    rec.ssthresh, rec.srtt, rec.data_sz);
+        } else {
+            if (queue_is_done(ctx->queue) && queue_is_empty(ctx->queue)) {
+                break; // nothing left to consume
+            }
+            sched_yield(); // brief backoff when empty
+        }
     }
     return 0;
 }

@@ -36,8 +36,11 @@ enum {
     TF_ARRAY_MAX_LENGTH = 550,
     TF2_ARRAY_MAX_LENGTH = 560,
     PER_FLOW_STRING_LENGTH = (INET6_ADDRSTRLEN*2 + 5*2 + 1),
+    QUEUE_SIZE = 102400,
+    QUEUE_MASK = QUEUE_SIZE - 1,
 };
 
+// siftr2 log header
 struct first_line_fields {
     char        siftrver[EIGHT_BYTES_LEN];
     char        sysname[EIGHT_BYTES_LEN];
