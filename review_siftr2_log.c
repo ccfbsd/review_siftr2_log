@@ -65,17 +65,27 @@ int reader_thread(void *arg) {
 
 int writer_thread(void *arg) {
     struct {
-        FILE *plot_file;
         queue_t *queue;
+        char *file_name;
     } *ctx = arg;
+
+    FILE *plot_file = fopen(ctx->file_name, "w");
+    if (!plot_file) {
+        perror("open plot file");
+        return EXIT_FAILURE;
+    }
+
+    fprintf(plot_file,
+            "##direction" TAB "relative_timestamp" TAB "cwnd" TAB "ssthresh" TAB
+            "srtt" TAB "data_size\n");
 
     record_t rec;
     for (;;) {
         if (queue_pop(ctx->queue, &rec)) {
-            fprintf(ctx->plot_file, "%s" TAB "%.6f" TAB "%8s" TAB
-                    "%10s" TAB "%6s" TAB "%4s\n",
-                    rec.direction, rec.rel_time, rec.cwnd,
-                    rec.ssthresh, rec.srtt, rec.data_sz);
+            fprintf(plot_file,
+                    "%s" TAB "%.6f" TAB "%8s" TAB "%10s" TAB "%6s" TAB "%4s\n",
+                    rec.direction, rec.rel_time, rec.cwnd, rec.ssthresh,
+                    rec.srtt, rec.data_sz);
         } else {
             if (queue_is_done(ctx->queue) && queue_is_empty(ctx->queue)) {
                 break; // nothing left to consume
@@ -83,6 +93,8 @@ int writer_thread(void *arg) {
             sched_yield(); // brief backoff when empty
         }
     }
+    fclose(plot_file);
+
     return 0;
 }
 
@@ -95,14 +107,6 @@ void stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
         return;
     }
 
-    FILE *plot_file = fopen(plot_file_name, "w");
-    if (!plot_file) {
-        perror("open plot file");
-        return;
-    }
-    fprintf(plot_file, "##direction" TAB "relative_timestamp" TAB "cwnd" TAB
-            "ssthresh" TAB "srtt" TAB "data_size\n");
-
     queue_t queue;
     queue_init(&queue);
 
@@ -113,9 +117,9 @@ void stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     } reader_ctx = {f_basics, flowid, &queue};
 
     struct {
-        FILE *plot_file;
         queue_t *queue;
-    } writer_ctx = {plot_file, &queue};
+        char *file_name;
+    } writer_ctx = {&queue, plot_file_name};
 
     thrd_t t_reader, t_writer;
     thrd_create(&t_reader, reader_thread, &reader_ctx);
@@ -123,8 +127,6 @@ void stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
 
     thrd_join(t_reader, NULL);
     thrd_join(t_writer, NULL);
-
-    fclose(plot_file);
 }
 
 int main(int argc, char *argv[]) {
