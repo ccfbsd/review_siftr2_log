@@ -184,7 +184,7 @@ int main(int argc, char *argv[]) {
                 printf("Usage: %s [options]\n", argv[0]);
                 printf(" -h, --help          Display this help message\n");
                 printf(" -f, --file          Get siftr log basics\n");
-                printf(" -t, --flow_start Unix_timestamp  The start Unix time of the first flow\n");
+                printf(" -t, --flow_start    The start Unix time of the first flow\n");
                 printf(" -s, --stats flowid  Get stats from flowid\n");
                 printf(" -v, --verbose       Verbose mode\n");
                 break;
