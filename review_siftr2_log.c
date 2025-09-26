@@ -16,6 +16,7 @@ int reader_thread(void *arg) {
     struct {
         struct file_basic_stats *f_basics;
         uint32_t flowid;
+        int idx;
         queue_t *queue;
     } *ctx = arg;
 
@@ -23,12 +24,17 @@ int reader_thread(void *arg) {
     char previous_line[ctx->f_basics->last_line_stats->line_len] = {};
     double first_flow_start_time = ctx->f_basics->first_flow_start_time;
 
+    uint32_t line_cnt = 0;
+    struct flow_info *f_info = &ctx->f_basics->flow_list[ctx->idx];
+
     rewind(ctx->f_basics->file);
     /* Read and discard the first line */
     if(fgets(current_line, sizeof(current_line), ctx->f_basics->file) == NULL) {
         PERROR_FUNCTION("Failed to read first line");
         return EXIT_FAILURE;
     }
+
+    line_cnt++; // Increment line counter, now shall be at the 2nd line
 
     while (fgets(current_line, sizeof(current_line), ctx->f_basics->file)) {
         if (previous_line[0] != '\0') {
@@ -42,7 +48,47 @@ int reader_thread(void *arg) {
 
             if (my_atol(fields[FLOW_ID], BASE16) == ctx->flowid) {
                 record_t rec;
-                snprintf(rec.direction, sizeof(rec.direction), "%s", fields[DIRECTION]);
+                uint32_t data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
+                uint32_t srtt = my_atol(fields[SRTT], BASE10);
+                uint32_t cwnd = my_atol(fields[CWND], BASE10);
+
+                f_info->srtt_sum += srtt;
+                if (f_info->srtt_min > srtt) {
+                    f_info->srtt_min = srtt;
+                }
+                if (f_info->srtt_max < srtt) {
+                    f_info->srtt_max = srtt;
+                }
+
+                f_info->cwnd_sum += cwnd;
+                if (f_info->cwnd_min > cwnd) {
+                    f_info->cwnd_min = cwnd;
+                }
+                if (f_info->cwnd_max < cwnd) {
+                    f_info->cwnd_max = cwnd;
+                }
+
+                if (data_sz > 0) {
+                    f_info->total_data_sz += data_sz;
+                    f_info->data_pkt_cnt++;
+                    if (f_info->min_payload_sz > data_sz) {
+                        f_info->min_payload_sz = data_sz;
+                    }
+                    if (f_info->max_payload_sz < data_sz) {
+                        f_info->max_payload_sz = data_sz;
+                    }
+                }
+                if ((data_sz % f_info->mss) > 0) {
+                    f_info->fragment_cnt++;
+                }
+
+                rec.direction = *fields[DIRECTION];
+                if (rec.direction == 'o') {
+                    ctx->f_basics->flow_list[ctx->idx].dir_out++;
+                } else {
+                    ctx->f_basics->flow_list[ctx->idx].dir_in++;
+                }
+
                 rec.rel_time = rel_time;
                 snprintf(rec.cwnd, sizeof(rec.cwnd), "%s", fields[CWND]);
                 snprintf(rec.ssthresh, sizeof(rec.ssthresh), "%s", fields[SSTHRESH]);
@@ -55,18 +101,23 @@ int reader_thread(void *arg) {
                 }
             }
         }
+        line_cnt++;
         strcpy(previous_line, current_line);
     }
 
     // Signal completion
     queue_set_done(ctx->queue);
-    return 0;
+
+    ctx->f_basics->num_lines = line_cnt;
+
+    return EXIT_SUCCESS;
 }
 
 int writer_thread(void *arg) {
     struct {
         queue_t *queue;
         char *file_name;
+        int idx;
     } *ctx = arg;
 
     FILE *plot_file = fopen(ctx->file_name, "w");
@@ -83,7 +134,7 @@ int writer_thread(void *arg) {
     for (;;) {
         if (queue_pop(ctx->queue, &rec)) {
             fprintf(plot_file,
-                    "%s" TAB "%.6f" TAB "%8s" TAB "%10s" TAB "%6s" TAB "%4s\n",
+                    "%c" TAB "%.6f" TAB "%8s" TAB "%10s" TAB "%6s" TAB "%4s\n",
                     rec.direction, rec.rel_time, rec.cwnd, rec.ssthresh,
                     rec.srtt, rec.data_sz);
         } else {
@@ -95,7 +146,7 @@ int writer_thread(void *arg) {
     }
     fclose(plot_file);
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 void stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
@@ -103,7 +154,7 @@ void stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
 {
     int idx;
     if (!is_flowid_in_file(f_basics, flowid, &idx)) {
-        fprintf(stderr, "flow ID %u not found\n", flowid);
+        printf("%s:%u: flow id %u not found\n", __FUNCTION__, __LINE__, flowid);
         return;
     }
 
@@ -113,13 +164,15 @@ void stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     struct {
         struct file_basic_stats *f_basics;
         uint32_t flowid;
+        int idx;
         queue_t *queue;
-    } reader_ctx = {f_basics, flowid, &queue};
+    } reader_ctx = {f_basics, flowid, idx, &queue};
 
     struct {
         queue_t *queue;
         char *file_name;
-    } writer_ctx = {&queue, plot_file_name};
+        int idx;
+    } writer_ctx = {&queue, plot_file_name, idx};
 
     thrd_t t_reader, t_writer;
     thrd_create(&t_reader, reader_thread, &reader_ctx);
@@ -188,12 +241,10 @@ int main(int argc, char *argv[]) {
                 break;
             case 's':
                 opt_match = true;
-                printf("input flow id is: %s", optarg);
+
                 if (!f_opt_match) {
-                    printf(", but no data file is given\n");
+                    printf("no data file is given\n");
                     return EXIT_FAILURE;
-                } else {
-                    printf("\n");
                 }
                 read_body_by_flowid(&f_basics, my_atol(optarg, BASE16));
                 break;

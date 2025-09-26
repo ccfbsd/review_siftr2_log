@@ -99,10 +99,26 @@ struct flow_info {
     bool        isSACK;
     uint8_t     snd_scale;                  /* Window scaling for snd window. */
     uint8_t     rcv_scale;                  /* Window scaling for recv window. */
-    uint32_t    record_cnt;
-    uint32_t    trans_cnt;
-    uint32_t    dir_in;                 /* count for output packets */
-    uint32_t    dir_out;                /* count for input packets */
+
+    uint64_t    record_cnt;             /* num of records in the log */
+    uint64_t    trans_cnt;              /* num of all transfers (in/out) */
+    uint64_t    dir_in;                 /* count for output packets */
+    uint64_t    dir_out;                /* count for input packets */
+
+    uint64_t    data_pkt_cnt;
+    uint64_t    total_data_sz;
+    uint16_t    min_payload_sz;
+    uint16_t    max_payload_sz;
+    uint64_t    fragment_cnt;
+
+    uint64_t    srtt_sum;
+    uint32_t    srtt_min;
+    uint32_t    srtt_max;
+
+    uint64_t    cwnd_sum;
+    uint32_t    cwnd_min;
+    uint32_t    cwnd_max;
+
     bool        is_info_set;
 };
 
@@ -134,7 +150,7 @@ is_flowid_in_file(const struct file_basic_stats *f_basics, uint32_t flowid, int 
 }
 
 void
-fill_flow_info(struct flow_info *target_flow, char *fields[])
+init_flow_info(struct flow_info *target_flow, char *fields[])
 {
     if (target_flow != NULL) {
         target_flow->flowid = (uint32_t)my_atol(fields[FL_FLOW_ID], BASE16);
@@ -153,6 +169,21 @@ fill_flow_info(struct flow_info *target_flow, char *fields[])
         target_flow->trans_cnt = (uint32_t)my_atol(fields[FL_NTRANS], BASE10);
         target_flow->dir_in = 0;
         target_flow->dir_out = 0;
+
+        target_flow->data_pkt_cnt = 0;
+        target_flow->total_data_sz = 0;
+        target_flow->min_payload_sz = UINT16_MAX;
+        target_flow->max_payload_sz = 0;
+        target_flow->fragment_cnt = 0;
+
+        target_flow->srtt_sum = 0;
+        target_flow->srtt_min = UINT32_MAX;
+        target_flow->srtt_max = 0;
+
+        target_flow->cwnd_sum = 0;
+        target_flow->cwnd_min = UINT32_MAX;
+        target_flow->cwnd_max = 0;
+
         target_flow->is_info_set = true;
     }
 }
@@ -353,7 +384,7 @@ static void
 print_flow_info(struct flow_info *flow_info)
 {
     printf(" id:%08x (%s:%hu<->%s:%hu) stack:%s tcp_cc:%s mss:%u SACK:%d"
-           " snd/rcv_scal:%hhu/%hhu cnt:%u/%u\n",
+           " snd/rcv_scal:%hhu/%hhu cnt:%" PRIu64 "/%" PRIu64 "\n",
            flow_info->flowid,
            flow_info->laddr, flow_info->lport,
            flow_info->faddr, flow_info->fport,
@@ -401,7 +432,7 @@ get_flow_count_and_info(struct file_basic_stats *f_basics)
         struct flow_info target_flow;
 
         fill_fields_from_line(fields, flow_list_arr[i], FOOT);
-        fill_flow_info(&target_flow, fields);
+        init_flow_info(&target_flow, fields);
         f_basics->flow_list[i] = target_flow;
     }
 
@@ -493,8 +524,12 @@ read_body_by_flowid(struct file_basic_stats *f_basics, uint32_t flowid)
 {
     int idx;
 
+    printf("input flow id is: %08x\n", flowid);
+
     if (is_flowid_in_file(f_basics, flowid, &idx)) {
         char plot_file_name[MAX_NAME_LENGTH];
+        struct flow_info *f_info = &f_basics->flow_list[idx];
+
         // Combine the strings into the plot_file buffer
         if (strlen(f_basics->prefix) == 0) {
             snprintf(plot_file_name, MAX_NAME_LENGTH, "plot_%08x.txt", flowid);
@@ -503,25 +538,42 @@ read_body_by_flowid(struct file_basic_stats *f_basics, uint32_t flowid)
                      f_basics->prefix, flowid);
         }
 
+        stats_into_plot_file(f_basics, flowid, plot_file_name);
+
+        printf("input file has total lines: %u\n", f_basics->num_lines);
         printf("plot_file_name: %s\n", plot_file_name);
 
         printf("++++++++++++++++++++++++++++++ summary ++++++++++++++++++++++++++++\n");
         printf("  %s:%hu->%s:%hu flowid: %08x\n",
-               f_basics->flow_list[idx].laddr, f_basics->flow_list[idx].lport,
-               f_basics->flow_list[idx].faddr, f_basics->flow_list[idx].fport,
+               f_info->laddr, f_info->lport, f_info->faddr, f_info->fport,
                flowid);
-        stats_into_plot_file(f_basics, flowid, plot_file_name);
 
-        printf("           has %u useful records (%u outputs, %u inputs)\n",
+        printf("input flow data_pkt_cnt: %" PRIu64 ", fragment_cnt: %" PRIu64
+               ", fragment_ratio: %.3f\n"
+               "           avg_payload: %.0f, min_payload: %u, max_payload: %u bytes\n"
+               "           avg_srtt: %" PRIu64 ", min_srtt: %u, max_srtt: %u µs\n"
+               "           avg_cwnd: %" PRIu64 ", min_cwnd: %u, max_cwnd: %u bytes\n",
+               f_info->data_pkt_cnt, f_info->fragment_cnt,
+               (double)f_info->fragment_cnt / f_info->data_pkt_cnt,
+               (double)f_info->total_data_sz / f_info->data_pkt_cnt,
+               f_info->min_payload_sz, f_info->max_payload_sz,
+               f_info->srtt_sum / f_info->record_cnt,
+               f_info->srtt_min, f_info->srtt_max,
+               f_info->cwnd_sum / f_info->record_cnt,
+               f_info->cwnd_min, f_info->cwnd_max);
+
+
+        printf("           has %" PRIu64 " useful records "
+               "(%" PRIu64 " outputs, %" PRIu64 " inputs)\n",
                f_basics->flow_list[idx].record_cnt,
                f_basics->flow_list[idx].dir_out,
                f_basics->flow_list[idx].dir_in);
 
-//        assert(f_basics->flow_list[idx].record_cnt ==
-//               (f_basics->flow_list[idx].dir_in +
-//                f_basics->flow_list[idx].dir_out));
+        assert(f_basics->flow_list[idx].record_cnt ==
+               (f_basics->flow_list[idx].dir_in +
+                f_basics->flow_list[idx].dir_out));
     } else {
-        printf("flow ID %u not found\n", flowid);
+        printf("but the flow id: %08x not found in file\n", flowid);
     }
 }
 
