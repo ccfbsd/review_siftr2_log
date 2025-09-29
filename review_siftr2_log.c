@@ -48,9 +48,17 @@ int reader_thread(void *arg) {
 
             if (my_atol(fields[FLOW_ID], BASE16) == ctx->flowid) {
                 record_t rec;
-                uint32_t data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
-                uint32_t srtt = my_atol(fields[SRTT], BASE10);
                 uint32_t cwnd = my_atol(fields[CWND], BASE10);
+                uint32_t ssthresh = my_atol(fields[SSTHRESH], BASE10);;
+                uint32_t srtt = my_atol(fields[SRTT], BASE10);
+                uint32_t data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
+
+                rec.direction = *fields[DIRECTION];
+                rec.rel_time = rel_time;
+                rec.cwnd = cwnd;
+                rec.ssthresh = ssthresh;
+                rec.srtt = srtt;
+                rec.data_sz = data_sz;
 
                 f_info->srtt_sum += srtt;
                 if (f_info->srtt_min > srtt) {
@@ -82,18 +90,11 @@ int reader_thread(void *arg) {
                     f_info->fragment_cnt++;
                 }
 
-                rec.direction = *fields[DIRECTION];
                 if (rec.direction == 'o') {
                     ctx->f_basics->flow_list[ctx->idx].dir_out++;
                 } else {
                     ctx->f_basics->flow_list[ctx->idx].dir_in++;
                 }
-
-                rec.rel_time = rel_time;
-                snprintf(rec.cwnd, sizeof(rec.cwnd), "%s", fields[CWND]);
-                snprintf(rec.ssthresh, sizeof(rec.ssthresh), "%s", fields[SSTHRESH]);
-                snprintf(rec.srtt, sizeof(rec.srtt), "%s", fields[SRTT]);
-                snprintf(rec.data_sz, sizeof(rec.data_sz), "%s", fields[TCP_DATA_SZ]);
 
                 // Try to push; if full, yield briefly (lock-free backoff)
                 while (!queue_push(ctx->queue, &rec)) {
@@ -134,7 +135,7 @@ int writer_thread(void *arg) {
     for (;;) {
         if (queue_pop(ctx->queue, &rec)) {
             fprintf(plot_file,
-                    "%c" TAB "%.6f" TAB "%8s" TAB "%10s" TAB "%6s" TAB "%4s\n",
+                    "%c" TAB "%.6f" TAB "%8u" TAB "%10u" TAB "%6u" TAB "%5u\n",
                     rec.direction, rec.rel_time, rec.cwnd, rec.ssthresh,
                     rec.srtt, rec.data_sz);
         } else {

@@ -38,12 +38,12 @@ thrd_create(thrd_t *thr, int (*func)(void*), void *arg)
 #define thrd_join(thr, res) pthread_join(thr, (void**)(res))
 
 typedef struct {
-    char    direction;
-    double  rel_time;
-    char    cwnd[11];
-    char    ssthresh[11];
-    char    srtt[7];
-    char    data_sz[5];
+    char        direction;  // 'i' or 'o'
+    double      rel_time;
+    uint32_t    cwnd;
+    uint32_t    ssthresh;
+    uint32_t    srtt;
+    uint32_t    data_sz;
 } record_t;
 
 typedef struct {
