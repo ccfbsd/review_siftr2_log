@@ -20,8 +20,12 @@ int reader_thread(void *arg) {
         queue_t *queue;
     } *ctx = arg;
 
-    char current_line[ctx->f_basics->last_line_stats->line_len];
-    char previous_line[ctx->f_basics->last_line_stats->line_len] = {};
+    const size_t line_len = ctx->f_basics->last_line_stats->line_len;
+    char buf1[line_len];
+    char buf2[line_len];
+    char *cur_line = buf1;
+    char *prev_line = buf2;
+    bool have_prev = false;
     double first_flow_start_time = ctx->f_basics->first_flow_start_time;
 
     uint32_t line_cnt = 0;
@@ -29,17 +33,17 @@ int reader_thread(void *arg) {
 
     rewind(ctx->f_basics->file);
     /* Read and discard the first line */
-    if(fgets(current_line, sizeof(current_line), ctx->f_basics->file) == NULL) {
+    if (fgets(cur_line, line_len, ctx->f_basics->file) == NULL) {
         PERROR_FUNCTION("Failed to read first line");
         return EXIT_FAILURE;
     }
 
     line_cnt++; // Increment line counter, now shall be at the 2nd line
 
-    while (fgets(current_line, sizeof(current_line), ctx->f_basics->file)) {
-        if (previous_line[0] != '\0') {
+    while (fgets(cur_line, line_len, ctx->f_basics->file)) {
+        if (have_prev) {
             char *fields[TOTAL_FIELDS];
-            fill_fields_from_line(fields, previous_line, BODY);
+            fill_fields_from_line(fields, prev_line, BODY);
 
             if (first_flow_start_time == 0) {
                 first_flow_start_time = atof(fields[TIMESTAMP]);
@@ -103,7 +107,8 @@ int reader_thread(void *arg) {
             }
         }
         line_cnt++;
-        strcpy(previous_line, current_line);
+        char *tmp = cur_line; cur_line = prev_line; prev_line = tmp;
+        have_prev = true;
     }
 
     // Signal completion
