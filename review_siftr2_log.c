@@ -123,7 +123,7 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                     fragment_cnt++;
                 }
                 fprintf(plot_file, "%s" TAB "%.6f" TAB "%8u" TAB
-                        "%10s" TAB "%6s" TAB "%4u"
+                        "%10s" TAB "%6s" TAB "%5u"
                         "\n",
                         fields[DIRECTION], relative_time_stamp, cwnd,
                         fields[SSTHRESH], fields[SRTT], data_sz);
