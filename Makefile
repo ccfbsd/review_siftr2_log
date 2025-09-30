@@ -22,7 +22,6 @@ endif
 CFLAGS = -std=c23 -O3 -Wall -Wextra -I.
 RM = rm -f
 
-
 # the build target executable:
 TARGET = review_siftr2_log
 default: $(TARGET)
