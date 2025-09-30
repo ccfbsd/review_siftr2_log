@@ -25,19 +25,6 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     double first_flow_start_time = f_basics->first_flow_start_time;
     double relative_time_stamp = 0;
 
-    uint32_t data_pkt_cnt = 0;
-    uint64_t total_data_sz = 0;
-    uint32_t min_data_pkt_sz = UINT32_MAX;
-    uint32_t max_data_pkt_sz = 0;
-    uint32_t fragment_cnt = 0;
-
-    uint64_t srtt_sum = 0;
-    uint32_t srtt_min = UINT32_MAX;
-    uint32_t srtt_max = 0;
-
-    uint64_t cwnd_sum = 0;
-    uint32_t cwnd_min = UINT32_MAX;
-    uint32_t cwnd_max = 0;
     int idx;
 
     if (!is_flowid_in_file(f_basics, flowid, &idx)) {
@@ -45,6 +32,9 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
         PERROR_FUNCTION("Failed to open sack plot file for writing");
         return;
     }
+
+    struct flow_info *f_info = &f_basics->flow_list[idx];
+
     assert((0 == f_basics->flow_list[idx].dir_in) &&
            (0 == f_basics->flow_list[idx].dir_out));
 
@@ -87,41 +77,42 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                 uint32_t srtt = my_atol(fields[SRTT], BASE10);
                 uint32_t cwnd = my_atol(fields[CWND], BASE10);
 
-                srtt_sum += srtt;
-                if (srtt_min > srtt) {
-                    srtt_min = srtt;
+                f_info->srtt_sum += srtt;
+                if (f_info->srtt_min > srtt) {
+                    f_info->srtt_min = srtt;
                 }
-                if (srtt_max < srtt) {
-                    srtt_max = srtt;
-                }
-
-                cwnd_sum += cwnd;
-                if (cwnd_min > cwnd) {
-                    cwnd_min = cwnd;
-                }
-                if (cwnd_max < cwnd) {
-                    cwnd_max = cwnd;
+                if (f_info->srtt_max < srtt) {
+                    f_info->srtt_max = srtt;
                 }
 
-                if (strcmp(fields[DIRECTION], "o") == 0) {
-                    f_basics->flow_list[idx].dir_out++;
-                } else {
-                    f_basics->flow_list[idx].dir_in++;
+                f_info->cwnd_sum += cwnd;
+                if (f_info->cwnd_min > cwnd) {
+                    f_info->cwnd_min = cwnd;
+                }
+                if (f_info->cwnd_max < cwnd) {
+                    f_info->cwnd_max = cwnd;
                 }
 
                 if (data_sz > 0) {
-                    total_data_sz += data_sz;
-                    data_pkt_cnt++;
-                    if (min_data_pkt_sz > data_sz) {
-                        min_data_pkt_sz = data_sz;
+                    f_info->total_data_sz += data_sz;
+                    f_info->data_pkt_cnt++;
+                    if (f_info->min_payload_sz > data_sz) {
+                        f_info->min_payload_sz = data_sz;
                     }
-                    if (max_data_pkt_sz < data_sz) {
-                        max_data_pkt_sz = data_sz;
+                    if (f_info->max_payload_sz < data_sz) {
+                        f_info->max_payload_sz = data_sz;
                     }
                 }
-                if ((data_sz % f_basics->flow_list[idx].mss) > 0) {
-                    fragment_cnt++;
+                if ((data_sz % f_info->mss) > 0) {
+                    f_info->fragment_cnt++;
                 }
+
+                if (strcmp(fields[DIRECTION], "o") == 0) {
+                    f_info->dir_out++;
+                } else {
+                    f_info->dir_in++;
+                }
+
                 fprintf(plot_file, "%s" TAB "%.6f" TAB "%8u" TAB
                         "%10s" TAB "%6s" TAB "%5u"
                         "\n",
@@ -140,17 +131,6 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     }
 
     f_basics->num_lines = line_cnt;
-
-    printf("input file has total lines: %u\n"
-           "input flow data_pkt_cnt: %u, fragment_cnt: %u, fragment_ratio: %.3f\n"
-           "           avg_data_pkt: %.0f, min_data_pkt: %u, max_data_pkt: %u bytes\n"
-           "           avg_srtt: %" PRIu64 ", min_srtt: %u, max_srtt: %u µs\n"
-           "           avg_cwnd: %" PRIu64 ", min_cwnd: %u, max_cwnd: %u bytes\n",
-           line_cnt,
-           data_pkt_cnt, fragment_cnt, (double)fragment_cnt / data_pkt_cnt,
-           (double)total_data_sz / data_pkt_cnt, min_data_pkt_sz, max_data_pkt_sz,
-           srtt_sum / line_cnt, srtt_min, srtt_max,
-           cwnd_sum / line_cnt, cwnd_min, cwnd_max);
 }
 
 int main(int argc, char *argv[]) {
@@ -212,12 +192,10 @@ int main(int argc, char *argv[]) {
                 break;
             case 's':
                 opt_match = true;
-                printf("input flow id is: %s", optarg);
+
                 if (!f_opt_match) {
                     printf(", but no data file is given\n");
                     return EXIT_FAILURE;
-                } else {
-                    printf("\n");
                 }
                 read_body_by_flowid(&f_basics, my_atol(optarg, BASE16));
                 break;
