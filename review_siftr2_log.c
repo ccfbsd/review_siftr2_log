@@ -28,7 +28,7 @@ int reader_thread(void *arg) {
     bool have_prev = false;
     double first_flow_start_time = ctx->f_basics->first_flow_start_time;
 
-    uint32_t line_cnt = 0;
+    uint64_t line_cnt = 0;
     struct flow_info *f_info = &ctx->f_basics->flow_list[ctx->idx];
 
     rewind(ctx->f_basics->file);

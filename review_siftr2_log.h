@@ -124,7 +124,7 @@ struct flow_info {
 
 struct file_basic_stats {
     FILE        *file;
-    uint32_t    num_lines;
+    uint64_t    num_lines;
     uint32_t    flow_count;
     char        prefix[MAX_NAME_LENGTH - 20];
     double first_flow_start_time;
@@ -540,7 +540,7 @@ read_body_by_flowid(struct file_basic_stats *f_basics, uint32_t flowid)
 
         stats_into_plot_file(f_basics, flowid, plot_file_name);
 
-        printf("input file has total lines: %u\n", f_basics->num_lines);
+        printf("input file has total lines: %" PRIu64 "\n", f_basics->num_lines);
         printf("plot_file_name: %s\n", plot_file_name);
 
         printf("++++++++++++++++++++++++++++++ summary ++++++++++++++++++++++++++++\n");
