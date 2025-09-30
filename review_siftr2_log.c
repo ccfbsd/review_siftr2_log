@@ -17,7 +17,7 @@ void
 stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                      char plot_file_name[])
 {
-    uint32_t line_cnt = 0;
+    uint64_t line_cnt = 0;
     uint32_t max_line_len = f_basics->last_line_stats->line_len;
     char current_line[max_line_len];
     char previous_line[max_line_len] = {};
