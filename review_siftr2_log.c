@@ -27,9 +27,18 @@ int reader_thread(void *arg) {
     char *prev_line = buf2;
     bool have_prev = false;
     double first_flow_start_time = ctx->f_basics->first_flow_start_time;
+    double rel_time;
 
     uint64_t line_cnt = 0;
     struct flow_info *f_info = &ctx->f_basics->flow_list[ctx->idx];
+
+    /* required fields in each record */
+    record_t rec;
+    uint32_t cwnd;
+    uint32_t ssthresh;
+    uint32_t srtt;
+    uint32_t data_sz;
+    double time_stamp;
 
     rewind(ctx->f_basics->file);
     /* Read and discard the first line */
@@ -45,17 +54,17 @@ int reader_thread(void *arg) {
             char *fields[TOTAL_FIELDS];
             fill_fields_from_line(fields, prev_line, BODY);
 
-            if (first_flow_start_time == 0) {
-                first_flow_start_time = atof(fields[TIMESTAMP]);
-            }
-            double rel_time = atof(fields[TIMESTAMP]) - first_flow_start_time;
-
             if (my_atol(fields[FLOW_ID], BASE16) == ctx->flowid) {
-                record_t rec;
-                uint32_t cwnd = my_atol(fields[CWND], BASE10);
-                uint32_t ssthresh = my_atol(fields[SSTHRESH], BASE10);;
-                uint32_t srtt = my_atol(fields[SRTT], BASE10);
-                uint32_t data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
+                cwnd = my_atol(fields[CWND], BASE10);
+                ssthresh = my_atol(fields[SSTHRESH], BASE10);
+                srtt = my_atol(fields[SRTT], BASE10);
+                data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
+
+                time_stamp = atof(fields[TIMESTAMP]);
+                if (first_flow_start_time == 0) {
+                    first_flow_start_time = time_stamp;
+                }
+                rel_time = time_stamp - first_flow_start_time;
 
                 rec.direction = *fields[DIRECTION];
                 rec.rel_time = rel_time;
