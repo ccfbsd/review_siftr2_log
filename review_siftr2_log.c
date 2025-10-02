@@ -16,7 +16,6 @@ int reader_thread(void *arg) {
     struct {
         struct file_basic_stats *f_basics;
         uint32_t flowid;
-        int idx;
         queue_t *queue;
     } *ctx = arg;
 
@@ -27,18 +26,10 @@ int reader_thread(void *arg) {
     char *prev_line = buf2;
     bool have_prev = false;
     double first_flow_start_time = ctx->f_basics->first_flow_start_time;
-    double rel_time;
 
     uint64_t line_cnt = 0;
-    struct flow_info *f_info = &ctx->f_basics->flow_list[ctx->idx];
-
-    /* required fields in each record */
+    uint64_t yield_cnt = 0;
     record_t rec;
-    uint32_t cwnd;
-    uint32_t ssthresh;
-    uint32_t srtt;
-    uint32_t data_sz;
-    double time_stamp;
 
     rewind(ctx->f_basics->file);
     /* Read and discard the first line */
@@ -55,62 +46,20 @@ int reader_thread(void *arg) {
             fill_fields_from_line(fields, prev_line, BODY);
 
             if (my_atol(fields[FLOW_ID], BASE16) == ctx->flowid) {
-                cwnd = my_atol(fields[CWND], BASE10);
-                ssthresh = my_atol(fields[SSTHRESH], BASE10);
-                srtt = my_atol(fields[SRTT], BASE10);
-                data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
-
-                time_stamp = atof(fields[TIMESTAMP]);
                 if (first_flow_start_time == 0) {
-                    first_flow_start_time = time_stamp;
+                    first_flow_start_time = atof(fields[TIMESTAMP]);
                 }
-                rel_time = time_stamp - first_flow_start_time;
 
                 rec.direction = *fields[DIRECTION];
-                rec.rel_time = rel_time;
-                rec.cwnd = cwnd;
-                rec.ssthresh = ssthresh;
-                rec.srtt = srtt;
-                rec.data_sz = data_sz;
-
-                f_info->srtt_sum += srtt;
-                if (f_info->srtt_min > srtt) {
-                    f_info->srtt_min = srtt;
-                }
-                if (f_info->srtt_max < srtt) {
-                    f_info->srtt_max = srtt;
-                }
-
-                f_info->cwnd_sum += cwnd;
-                if (f_info->cwnd_min > cwnd) {
-                    f_info->cwnd_min = cwnd;
-                }
-                if (f_info->cwnd_max < cwnd) {
-                    f_info->cwnd_max = cwnd;
-                }
-
-                if (data_sz > 0) {
-                    f_info->total_data_sz += data_sz;
-                    f_info->data_pkt_cnt++;
-                    if (f_info->min_payload_sz > data_sz) {
-                        f_info->min_payload_sz = data_sz;
-                    }
-                    if (f_info->max_payload_sz < data_sz) {
-                        f_info->max_payload_sz = data_sz;
-                    }
-                }
-                if ((data_sz % f_info->mss) > 0) {
-                    f_info->fragment_cnt++;
-                }
-
-                if (rec.direction == 'o') {
-                    ctx->f_basics->flow_list[ctx->idx].dir_out++;
-                } else {
-                    ctx->f_basics->flow_list[ctx->idx].dir_in++;
-                }
+                rec.rel_time = atof(fields[TIMESTAMP]) - first_flow_start_time;
+                rec.cwnd = my_atol(fields[CWND], BASE10);
+                rec.ssthresh = my_atol(fields[SSTHRESH], BASE10);
+                rec.srtt = my_atol(fields[SRTT], BASE10);
+                rec.data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
 
                 // Try to push; if full, yield briefly (lock-free backoff)
                 while (!queue_push(ctx->queue, &rec)) {
+                    yield_cnt++;
                     sched_yield(); // or nanosleep for gentler backoff
                 }
             }
@@ -125,15 +74,24 @@ int reader_thread(void *arg) {
 
     ctx->f_basics->num_lines = line_cnt;
 
+    if (verbose) {
+        printf("[%s] yield_cnt =  %" PRIu64 "\n", __FUNCTION__, yield_cnt);
+    }
+
     return EXIT_SUCCESS;
 }
 
 int writer_thread(void *arg) {
     struct {
-        queue_t *queue;
-        char *file_name;
+        struct file_basic_stats *f_basics;
         int idx;
+        char *file_name;
+        queue_t *queue;
     } *ctx = arg;
+
+    uint64_t yield_cnt = 0;
+
+    struct flow_info *f_info = &ctx->f_basics->flow_list[ctx->idx];
 
     FILE *plot_file = fopen(ctx->file_name, "w");
     if (!plot_file) {
@@ -146,8 +104,45 @@ int writer_thread(void *arg) {
             "srtt" TAB "data_size\n");
 
     record_t rec;
-    for (;;) {
+    while (true) {
         if (queue_pop(ctx->queue, &rec)) {
+            // update stats
+            f_info->srtt_sum += rec.srtt;
+            if (f_info->srtt_min > rec.srtt) {
+                f_info->srtt_min = rec.srtt;
+            }
+            if (f_info->srtt_max < rec.srtt) {
+                f_info->srtt_max = rec.srtt;
+            }
+
+            f_info->cwnd_sum += rec.cwnd;
+            if (f_info->cwnd_min > rec.cwnd) {
+                f_info->cwnd_min = rec.cwnd;
+            }
+            if (f_info->cwnd_max < rec.cwnd) {
+                f_info->cwnd_max = rec.cwnd;
+            }
+
+            if (rec.data_sz > 0) {
+                f_info->total_data_sz += rec.data_sz;
+                f_info->data_pkt_cnt++;
+                if (f_info->min_payload_sz > rec.data_sz) {
+                    f_info->min_payload_sz = rec.data_sz;
+                }
+                if (f_info->max_payload_sz < rec.data_sz) {
+                    f_info->max_payload_sz = rec.data_sz;
+                }
+            }
+            if ((rec.data_sz % f_info->mss) > 0) {
+                f_info->fragment_cnt++;
+            }
+
+            if (rec.direction == 'o') {
+                f_info->dir_out++;
+            } else {
+                f_info->dir_in++;
+            }
+
             fprintf(plot_file,
                     "%c" TAB "%.6f" TAB "%8u" TAB "%10u" TAB "%6u" TAB "%5u\n",
                     rec.direction, rec.rel_time, rec.cwnd, rec.ssthresh,
@@ -156,10 +151,15 @@ int writer_thread(void *arg) {
             if (queue_is_done(ctx->queue) && queue_is_empty(ctx->queue)) {
                 break; // nothing left to consume
             }
+            yield_cnt++;
             sched_yield(); // brief backoff when empty
         }
     }
     fclose(plot_file);
+
+    if (verbose) {
+        printf("[%s] yield_cnt =  %" PRIu64 "\n", __FUNCTION__, yield_cnt);
+    }
 
     return EXIT_SUCCESS;
 }
@@ -179,15 +179,15 @@ void stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     struct {
         struct file_basic_stats *f_basics;
         uint32_t flowid;
-        int idx;
         queue_t *queue;
-    } reader_ctx = {f_basics, flowid, idx, &queue};
+    } reader_ctx = {f_basics, flowid, &queue};
 
     struct {
-        queue_t *queue;
-        char *file_name;
+        struct file_basic_stats *f_basics;
         int idx;
-    } writer_ctx = {&queue, plot_file_name, idx};
+        char *file_name;
+        queue_t *queue;
+    } writer_ctx = {f_basics, idx, plot_file_name, &queue};
 
     thrd_t t_reader, t_writer;
     thrd_create(&t_reader, reader_thread, &reader_ctx);
