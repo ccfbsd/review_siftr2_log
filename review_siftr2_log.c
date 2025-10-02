@@ -23,7 +23,12 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     char previous_line[max_line_len] = {};
 
     double first_flow_start_time = f_basics->first_flow_start_time;
-    double relative_time_stamp = 0;
+
+    double rel_time;
+    double time_stamp;
+    uint32_t cwnd;
+    uint32_t srtt;
+    uint32_t data_sz;
 
     int idx;
 
@@ -65,17 +70,16 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
 
             fill_fields_from_line(fields, previous_line, BODY);
 
-            if (first_flow_start_time == 0) {
-                first_flow_start_time = atof(fields[TIMESTAMP]);
-                relative_time_stamp = 0;
-            } else {
-                relative_time_stamp = atof(fields[TIMESTAMP]) - first_flow_start_time;
-            }
-
             if (my_atol(fields[FLOW_ID], BASE16) == flowid) {
-                uint32_t data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
-                uint32_t srtt = my_atol(fields[SRTT], BASE10);
-                uint32_t cwnd = my_atol(fields[CWND], BASE10);
+                cwnd = my_atol(fields[CWND], BASE10);
+                srtt = my_atol(fields[SRTT], BASE10);
+                data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
+
+                time_stamp = atof(fields[TIMESTAMP]);
+                if (first_flow_start_time == 0) {
+                    first_flow_start_time = time_stamp;
+                }
+                rel_time = time_stamp - first_flow_start_time;
 
                 f_info->srtt_sum += srtt;
                 if (f_info->srtt_min > srtt) {
@@ -116,7 +120,7 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                 fprintf(plot_file, "%s" TAB "%.6f" TAB "%8u" TAB
                         "%10s" TAB "%6s" TAB "%5u"
                         "\n",
-                        fields[DIRECTION], relative_time_stamp, cwnd,
+                        fields[DIRECTION], rel_time, cwnd,
                         fields[SSTHRESH], fields[SRTT], data_sz);
             }
         }
