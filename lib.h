@@ -341,6 +341,26 @@ my_atol(const char *str, int base)
     return number;
 }
 
+static const int8_t hexval[256] = {
+    ['0']=0, ['1']=1, ['2']=2, ['3']=3, ['4']=4, ['5']=5, ['6']=6, ['7']=7,
+    ['8']=8, ['9']=9,
+    ['A']=10, ['B']=11, ['C']=12, ['D']=13, ['E']=14, ['F']=15,
+    ['a']=10, ['b']=11, ['c']=12, ['d']=13, ['e']=14, ['f']=15
+};
+
+uint32_t
+fast_hex_to_u32(const char *s)
+{
+    unsigned char c;
+    uint32_t val = 0;
+
+    while ((c = (unsigned char)*s++)) {
+        val = (val << 4) | (uint32_t)hexval[c];
+    }
+
+    return val;
+}
+
 void
 timeval_subtract(struct timeval *result, const struct timeval *t1,
                  const struct timeval *t2)

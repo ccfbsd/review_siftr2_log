@@ -45,7 +45,7 @@ int reader_thread(void *arg) {
             char *fields[TOTAL_FIELDS];
             fill_fields_from_line(fields, prev_line, BODY);
 
-            if (my_atol(fields[FLOW_ID], BASE16) == ctx->flowid) {
+            if (fast_hex_to_u32(fields[FLOW_ID]) == ctx->flowid) {
                 if (first_flow_start_time == 0) {
                     first_flow_start_time = atof(fields[TIMESTAMP]);
                 }
