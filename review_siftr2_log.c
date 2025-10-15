@@ -17,41 +17,16 @@ void
 stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                      char plot_file_name[])
 {
-    uint64_t line_cnt = 0;
-    uint32_t max_line_len = f_basics->last_line_stats->line_len;
-    char current_line[max_line_len];
-    char previous_line[max_line_len] = {};
-
-    double first_flow_start_time = f_basics->first_flow_start_time;
-
-    double rel_time;
+    char line[MAX_LINE_LENGTH];
     double time_stamp;
     uint32_t cwnd;
     uint32_t srtt;
     uint32_t data_sz;
 
-    int idx;
-
-    if (!is_flowid_in_file(f_basics, flowid, &idx)) {
-        printf("%s:%u: flow ID %u not found\n", __FUNCTION__, __LINE__, flowid);
-        PERROR_FUNCTION("Failed to open sack plot file for writing");
-        return;
-    }
-
-    struct flow_info *f_info = &f_basics->flow_list[idx];
-
-    assert((0 == f_basics->flow_list[idx].dir_in) &&
-           (0 == f_basics->flow_list[idx].dir_out));
+    uint64_t line_num = 0;
 
     /* Restart seeking and go back to the beginning of the file */
     rewind(f_basics->file);
-
-    /* Read and discard the first line */
-    if(fgets(current_line, max_line_len, f_basics->file) == NULL) {
-        PERROR_FUNCTION("Failed to read first line");
-        return;
-    }
-    line_cnt++; // Increment line counter, now shall be at the 2nd line
 
     FILE *plot_file = fopen(plot_file_name, "w");
     if (!plot_file) {
@@ -60,81 +35,35 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     }
 
     fprintf(plot_file,
-            "##direction" TAB "relative_timestamp" TAB "cwnd" TAB
+            "##line_num" TAB "direction" TAB "relative_timestamp" TAB "cwnd" TAB
             "ssthresh" TAB "srtt" TAB "data_size"
             "\n");
 
-    while (fgets(current_line, max_line_len, f_basics->file) != NULL) {
-        if (previous_line[0] != '\0') {
-            char *fields[TOTAL_FIELDS];
+    while (fgets(line, sizeof(line), f_basics->file) != NULL) {
+        char *fields[TOTAL_FIELDS];
 
-            fill_fields_from_line(fields, previous_line, BODY);
+        fill_fields_from_line(fields, line, BODY);
 
-            if (my_atol(fields[FLOW_ID], BASE16) == flowid) {
-                cwnd = my_atol(fields[CWND], BASE10);
-                srtt = my_atol(fields[SRTT], BASE10);
-                data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
+        if (my_atol(fields[FLOW_ID], BASE16) == flowid) {
+            time_stamp = atof(fields[TIMESTAMP]);
+            cwnd = my_atol(fields[CWND], BASE10);
+            srtt = my_atol(fields[SRTT], BASE10);
+            data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
 
-                time_stamp = atof(fields[TIMESTAMP]);
-                if (first_flow_start_time == 0) {
-                    first_flow_start_time = time_stamp;
-                }
-                rel_time = time_stamp - first_flow_start_time;
-
-                f_info->srtt_sum += srtt;
-                if (f_info->srtt_min > srtt) {
-                    f_info->srtt_min = srtt;
-                }
-                if (f_info->srtt_max < srtt) {
-                    f_info->srtt_max = srtt;
-                }
-
-                f_info->cwnd_sum += cwnd;
-                if (f_info->cwnd_min > cwnd) {
-                    f_info->cwnd_min = cwnd;
-                }
-                if (f_info->cwnd_max < cwnd) {
-                    f_info->cwnd_max = cwnd;
-                }
-
-                if (data_sz > 0) {
-                    f_info->total_data_sz += data_sz;
-                    f_info->data_pkt_cnt++;
-                    if (f_info->min_payload_sz > data_sz) {
-                        f_info->min_payload_sz = data_sz;
-                    }
-                    if (f_info->max_payload_sz < data_sz) {
-                        f_info->max_payload_sz = data_sz;
-                    }
-                }
-                if ((data_sz % f_info->mss) > 0) {
-                    f_info->fragment_cnt++;
-                }
-
-                if (strcmp(fields[DIRECTION], "o") == 0) {
-                    f_info->dir_out++;
-                } else {
-                    f_info->dir_in++;
-                }
-
-                fprintf(plot_file, "%s" TAB "%.6f" TAB "%8u" TAB
-                        "%10s" TAB "%6s" TAB "%5u"
-                        "\n",
-                        fields[DIRECTION], rel_time, cwnd,
-                        fields[SSTHRESH], fields[SRTT], data_sz);
-            }
+            fprintf(plot_file, "%10u" TAB "%s" TAB "%.6f" TAB "%8u" TAB
+                    "%10s" TAB "%6u" TAB "%5u"
+                    "\n",
+                    ++line_num,
+                    fields[DIRECTION], time_stamp, cwnd,
+                    fields[SSTHRESH], srtt, data_sz);
         }
-
-        line_cnt++;
-        /* Update the previous line to be the current line. */
-        strcpy(previous_line, current_line);
     }
 
     if (fclose(plot_file) == EOF) {
         PERROR_FUNCTION("Failed to close plot_file");
     }
 
-    f_basics->num_lines = line_cnt;
+    f_basics->num_lines = line_num;
 }
 
 int main(int argc, char *argv[]) {
@@ -179,7 +108,6 @@ int main(int argc, char *argv[]) {
                     PERROR_FUNCTION("get_file_basics() failed");
                     return EXIT_FAILURE;
                 }
-                show_file_basic_stats(&f_basics);
                 break;
             case 't':
                 opt_match = true;

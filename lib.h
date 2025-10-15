@@ -30,20 +30,12 @@ enum {
     EIGHT_BYTES_LEN = 8,
     BASE10          = 10,
     BASE16          = 16,
-    MAX_LINE_LENGTH = 1000,
+    MAX_LINE_LENGTH = 200,
     MAX_NAME_LENGTH = 100,
     INET6_ADDRSTRLEN = 46,
     TF_ARRAY_MAX_LENGTH = 550,
     TF2_ARRAY_MAX_LENGTH = 560,
     PER_FLOW_STRING_LENGTH = (INET6_ADDRSTRLEN*2 + 5*2 + 1),
-};
-
-struct first_line_fields {
-    char        siftrver[EIGHT_BYTES_LEN];
-    char        sysname[EIGHT_BYTES_LEN];
-    char        sysver[EIGHT_BYTES_LEN];
-    char        ipmode[EIGHT_BYTES_LEN];
-    struct timeval enable_time;
 };
 
 struct pkt_info {
