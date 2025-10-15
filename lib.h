@@ -30,7 +30,7 @@ enum {
     EIGHT_BYTES_LEN = 8,
     BASE10          = 10,
     BASE16          = 16,
-    MAX_LINE_LENGTH = 1000,
+    MAX_LINE_LENGTH = 200,
     MAX_NAME_LENGTH = 100,
     INET6_ADDRSTRLEN = 46,
     TF_ARRAY_MAX_LENGTH = 550,

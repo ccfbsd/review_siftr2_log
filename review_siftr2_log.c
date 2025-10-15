@@ -19,54 +19,32 @@ int reader_thread(void *arg) {
         queue_t *queue;
     } *ctx = arg;
 
-    const size_t line_len = ctx->f_basics->last_line_stats->line_len;
-    char buf1[line_len];
-    char buf2[line_len];
-    char *cur_line = buf1;
-    char *prev_line = buf2;
-    bool have_prev = false;
-    double first_flow_start_time = ctx->f_basics->first_flow_start_time;
-
+    char line[MAX_LINE_LENGTH];
     uint64_t line_cnt = 0;
     uint64_t yield_cnt = 0;
     record_t rec;
 
     rewind(ctx->f_basics->file);
-    /* Read and discard the first line */
-    if (fgets(cur_line, line_len, ctx->f_basics->file) == NULL) {
-        PERROR_FUNCTION("Failed to read first line");
-        return EXIT_FAILURE;
-    }
 
-    line_cnt++; // Increment line counter, now shall be at the 2nd line
+    while (fgets(line, sizeof(line), ctx->f_basics->file)) {
+        char *fields[TOTAL_FIELDS];
+        fill_fields_from_line(fields, line, BODY);
 
-    while (fgets(cur_line, line_len, ctx->f_basics->file)) {
-        if (have_prev) {
-            char *fields[TOTAL_FIELDS];
-            fill_fields_from_line(fields, prev_line, BODY);
+        if (fast_hex_to_u32(fields[FLOW_ID]) == ctx->flowid) {
+            line_cnt++;
+            rec.direction = *fields[DIRECTION];
+            rec.rel_time = atof(fields[TIMESTAMP]);
+            rec.cwnd = my_atol(fields[CWND], BASE10);
+            rec.ssthresh = my_atol(fields[SSTHRESH], BASE10);
+            rec.srtt = my_atol(fields[SRTT], BASE10);
+            rec.data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
 
-            if (fast_hex_to_u32(fields[FLOW_ID]) == ctx->flowid) {
-                if (first_flow_start_time == 0) {
-                    first_flow_start_time = atof(fields[TIMESTAMP]);
-                }
-
-                rec.direction = *fields[DIRECTION];
-                rec.rel_time = atof(fields[TIMESTAMP]) - first_flow_start_time;
-                rec.cwnd = my_atol(fields[CWND], BASE10);
-                rec.ssthresh = my_atol(fields[SSTHRESH], BASE10);
-                rec.srtt = my_atol(fields[SRTT], BASE10);
-                rec.data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
-
-                // Try to push; if full, yield briefly (lock-free backoff)
-                while (!queue_push(ctx->queue, &rec)) {
-                    yield_cnt++;
-                    sched_yield(); // or nanosleep for gentler backoff
-                }
+            // Try to push; if full, yield briefly (lock-free backoff)
+            while (!queue_push(ctx->queue, &rec)) {
+                yield_cnt++;
+                sched_yield(); // or nanosleep for gentler backoff
             }
         }
-        line_cnt++;
-        char *tmp = cur_line; cur_line = prev_line; prev_line = tmp;
-        have_prev = true;
     }
 
     // Signal completion
@@ -84,14 +62,12 @@ int reader_thread(void *arg) {
 int writer_thread(void *arg) {
     struct {
         struct file_basic_stats *f_basics;
-        int idx;
         char *file_name;
         queue_t *queue;
     } *ctx = arg;
 
     uint64_t yield_cnt = 0;
-
-    struct flow_info *f_info = &ctx->f_basics->flow_list[ctx->idx];
+    uint64_t line_num = 0;
 
     FILE *plot_file = fopen(ctx->file_name, "w");
     if (!plot_file) {
@@ -100,51 +76,15 @@ int writer_thread(void *arg) {
     }
 
     fprintf(plot_file,
-            "##direction" TAB "relative_timestamp" TAB "cwnd" TAB "ssthresh" TAB
-            "srtt" TAB "data_size\n");
+            "##line_num" TAB "direction" TAB "relative_timestamp" TAB "cwnd" TAB
+	    "ssthresh" TAB "srtt" TAB "data_size\n");
 
     record_t rec;
     while (true) {
         if (queue_pop(ctx->queue, &rec)) {
-            // update stats
-            f_info->srtt_sum += rec.srtt;
-            if (f_info->srtt_min > rec.srtt) {
-                f_info->srtt_min = rec.srtt;
-            }
-            if (f_info->srtt_max < rec.srtt) {
-                f_info->srtt_max = rec.srtt;
-            }
-
-            f_info->cwnd_sum += rec.cwnd;
-            if (f_info->cwnd_min > rec.cwnd) {
-                f_info->cwnd_min = rec.cwnd;
-            }
-            if (f_info->cwnd_max < rec.cwnd) {
-                f_info->cwnd_max = rec.cwnd;
-            }
-
-            if (rec.data_sz > 0) {
-                f_info->total_data_sz += rec.data_sz;
-                f_info->data_pkt_cnt++;
-                if (f_info->min_payload_sz > rec.data_sz) {
-                    f_info->min_payload_sz = rec.data_sz;
-                }
-                if (f_info->max_payload_sz < rec.data_sz) {
-                    f_info->max_payload_sz = rec.data_sz;
-                }
-            }
-            if ((rec.data_sz % f_info->mss) > 0) {
-                f_info->fragment_cnt++;
-            }
-
-            if (rec.direction == 'o') {
-                f_info->dir_out++;
-            } else {
-                f_info->dir_in++;
-            }
-
-            fprintf(plot_file,
+            fprintf(plot_file, "%10" PRIu64 TAB
                     "%c" TAB "%.6f" TAB "%8u" TAB "%10u" TAB "%6u" TAB "%5u\n",
+		    ++line_num,
                     rec.direction, rec.rel_time, rec.cwnd, rec.ssthresh,
                     rec.srtt, rec.data_sz);
         } else {
@@ -167,12 +107,6 @@ int writer_thread(void *arg) {
 void stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                           char plot_file_name[])
 {
-    int idx;
-    if (!is_flowid_in_file(f_basics, flowid, &idx)) {
-        printf("%s:%u: flow id %u not found\n", __FUNCTION__, __LINE__, flowid);
-        return;
-    }
-
     queue_t queue;
     queue_init(&queue);
 
@@ -184,10 +118,9 @@ void stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
 
     struct {
         struct file_basic_stats *f_basics;
-        int idx;
         char *file_name;
         queue_t *queue;
-    } writer_ctx = {f_basics, idx, plot_file_name, &queue};
+    } writer_ctx = {f_basics, plot_file_name, &queue};
 
     thrd_t t_reader, t_writer;
     thrd_create(&t_reader, reader_thread, &reader_ctx);
@@ -239,7 +172,6 @@ int main(int argc, char *argv[]) {
                     PERROR_FUNCTION("get_file_basics() failed");
                     return EXIT_FAILURE;
                 }
-                show_file_basic_stats(&f_basics);
                 break;
             case 't':
                 opt_match = true;
