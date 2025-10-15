@@ -36,9 +36,13 @@ enum {
     TF_ARRAY_MAX_LENGTH = 550,
     TF2_ARRAY_MAX_LENGTH = 560,
     PER_FLOW_STRING_LENGTH = (INET6_ADDRSTRLEN*2 + 5*2 + 1),
-    QUEUE_SIZE = 102400,
+    QUEUE_SIZE = 256 * 256 * 2,
     QUEUE_MASK = QUEUE_SIZE - 1,
 };
+
+_Static_assert(QUEUE_SIZE > 0, "QUEUE_SIZE must be > 0");
+_Static_assert((QUEUE_SIZE & (QUEUE_SIZE - 1)) == 0, "QUEUE_SIZE must be a power of two");
+_Static_assert(QUEUE_MASK == (QUEUE_SIZE - 1), "QUEUE_MASK must equal QUEUE_SIZE - 1");
 
 // siftr2 log header
 struct first_line_fields {
