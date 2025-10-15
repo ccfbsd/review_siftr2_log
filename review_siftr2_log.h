@@ -246,6 +246,29 @@ fill_fields_from_line(char **fields, char *line, enum line_type type)
     }
 }
 
+static inline bool
+file_has_3lines(const struct file_basic_stats *f_basics)
+{
+    int c;
+    int newline_cnt = 0;
+
+    rewind(f_basics->file);
+    while ((c = fgetc(f_basics->file)) != EOF) {
+        if (c == '\n') {
+            newline_cnt++;
+            if (newline_cnt > 2) { // 3 lines => at least 2 newline characters
+                break;
+            }
+        }
+    }
+    if (newline_cnt <= 2) {
+        PERROR_FUNCTION("File must contain at least 3 lines for head, body and foot.");
+        fclose(f_basics->file);
+        return (false);
+    }
+    return (true);
+}
+
 static inline void
 get_first_line_stats(struct file_basic_stats *f_basics)
 {
@@ -450,22 +473,7 @@ get_file_basics(struct file_basic_stats *f_basics, const char *file_name)
     }
     f_basics->file = file;
 
-
-    int newline_count = 0;
-    int c;
-
-    rewind(file);
-    while ((c = fgetc(file)) != EOF) {
-        if (c == '\n') {
-            newline_count++;
-            if (newline_count > 2) { // 3 lines => at least 2 newline characters
-                break;
-            }
-        }
-    }
-    if (newline_count <= 2) {
-        PERROR_FUNCTION("File must contain at least 3 lines (head, body, foot).");
-        fclose(file);
+    if (!file_has_3lines(f_basics)) {
         return EXIT_FAILURE;
     }
     rewind(file);
