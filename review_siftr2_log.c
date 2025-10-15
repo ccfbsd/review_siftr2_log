@@ -50,9 +50,8 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
             srtt = my_atol(fields[SRTT], BASE10);
             data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
 
-            fprintf(plot_file, "%10u" TAB "%s" TAB "%.6f" TAB "%8u" TAB
-                    "%10s" TAB "%6u" TAB "%5u"
-                    "\n",
+            fprintf(plot_file, "%10" PRIu64 TAB
+                    "%s" TAB "%.6f" TAB "%8u" TAB "%10s" TAB "%6u" TAB "%5u\n",
                     ++line_num,
                     fields[DIRECTION], time_stamp, cwnd,
                     fields[SSTHRESH], srtt, data_sz);
