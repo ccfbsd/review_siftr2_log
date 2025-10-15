@@ -213,7 +213,7 @@ read_last_line(FILE *file, char *lastLine)
     }
     /* If file has only one line, handle that case */
     rewind(file);
-    if (fgets(lastLine, MAX_LINE_LENGTH, file) != NULL) {
+    if (fgets(lastLine, sizeof(lastLine), file) != NULL) {
         return EXIT_SUCCESS;
     } else {
         PERROR_FUNCTION("fgets");
@@ -274,24 +274,20 @@ get_first_2lines_stats(struct file_basic_stats *f_basics)
 {
     FILE *file = f_basics->file;
     struct first_line_fields *f_line_stats = NULL;
-    char *firstLine = (char *)calloc(MAX_LINE_LENGTH, sizeof(char));
-    if (firstLine == NULL) {
-        PERROR_FUNCTION("malloc");
-        return;
-    }
+    char line[MAX_LINE_LENGTH] = {};
 
     /* read the first line of the file */
-    if (fgets(firstLine, MAX_LINE_LENGTH, file) != NULL) {
+    if (fgets(line, sizeof(line), file) != NULL) {
         /* 6 fields in the first line */
         char *fields[TOTAL_FIRST_LINE_FIELDS];
         uint32_t field_count = 0;
         f_line_stats = (struct first_line_fields *)malloc(sizeof(*f_line_stats));
 
         /* Strip newline characters at the end */
-        firstLine[strcspn(firstLine, "\r\n")] = '\0';
+        line[strcspn(line, "\r\n")] = '\0';
 
         /* Tokenize the line using comma as the delimiter */
-        char *token = strtok(firstLine, TAB_DELIMITER);
+        char *token = strtok(line, TAB_DELIMITER);
         while (token != NULL) {
             fields[field_count++] = token;
             token = strtok(NULL, TAB_DELIMITER);
@@ -307,17 +303,13 @@ get_first_2lines_stats(struct file_basic_stats *f_basics)
                  next_sub_str_from(fields[SYSVER], EQUAL_DELIMITER));
         snprintf(f_line_stats->ipmode, sizeof(f_line_stats->ipmode), "%s",
                  next_sub_str_from(fields[IPMODE], EQUAL_DELIMITER));
-
-        free(firstLine);
     } else {
-        free(firstLine);
         PERROR_FUNCTION("Failed to read the first line.");
         return;
     }
 
     {
         /* read the second line of the file */
-        char line[MAX_LINE_LENGTH] = {};
         if (fgets(line, sizeof(line), file) == NULL) {
             PERROR_FUNCTION("Failed to read the second line");
             return;
@@ -348,13 +340,9 @@ get_last_line_stats(struct file_basic_stats *f_basics)
 {
     FILE *file = f_basics->file;
     struct last_line_fields *l_line_stats = NULL;
-    char *lastLine = (char *)calloc(MAX_LINE_LENGTH, sizeof(char));
-    if (lastLine == NULL) {
-        PERROR_FUNCTION("malloc");
-        return;
-    }
+    char line[MAX_LINE_LENGTH] = {};
 
-    if (read_last_line(file, lastLine) == EXIT_SUCCESS) {
+    if (read_last_line(file, line) == EXIT_SUCCESS) {
         char *fields[TOTAL_LAST_LINE_FIELDS];
         uint32_t field_count = 0;
         l_line_stats = (struct last_line_fields *)malloc(sizeof(*l_line_stats));
@@ -363,13 +351,13 @@ get_last_line_stats(struct file_basic_stats *f_basics)
         }
 
         /* includes the null terminator */
-        l_line_stats->line_len = strlen(lastLine) + 1;
+        l_line_stats->line_len = strlen(line) + 1;
 
         /* Strip newline characters at the end */
-        lastLine[strcspn(lastLine, "\r\n")] = '\0';
+        line[strcspn(line, "\r\n")] = '\0';
 
         // Tokenize the line using tab as the delimiter
-        char *token = strtok(lastLine, TAB_DELIMITER);
+        char *token = strtok(line, TAB_DELIMITER);
         while (token != NULL) {
             fields[field_count++] = token;
             token = strtok(NULL, TAB_DELIMITER);
@@ -393,10 +381,7 @@ get_last_line_stats(struct file_basic_stats *f_basics)
         if (l_line_stats->flow_list_str == NULL) {
             PERROR_FUNCTION("Failed to strdup the last line.");
         }
-
-        free(lastLine);
     } else {
-        free(lastLine);
         PERROR_FUNCTION("Failed to read the last line.");
         return;
     }
