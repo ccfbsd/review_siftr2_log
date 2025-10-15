@@ -450,6 +450,26 @@ get_file_basics(struct file_basic_stats *f_basics, const char *file_name)
     }
     f_basics->file = file;
 
+
+    int newline_count = 0;
+    int c;
+
+    rewind(file);
+    while ((c = fgetc(file)) != EOF) {
+        if (c == '\n') {
+            newline_count++;
+            if (newline_count > 2) { // 3 lines => at least 2 newline characters
+                break;
+            }
+        }
+    }
+    if (newline_count <= 2) {
+        PERROR_FUNCTION("File must contain at least 3 lines (head, body, foot).");
+        fclose(file);
+        return EXIT_FAILURE;
+    }
+    rewind(file);
+
     get_first_line_stats(f_basics);
     if (f_basics->first_line_stats == NULL) {
         PERROR_FUNCTION("head note not exist");
