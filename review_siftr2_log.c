@@ -25,7 +25,7 @@ int reader_thread(void *arg) {
     char *cur_line = buf1;
     char *prev_line = buf2;
     bool have_prev = false;
-    double first_flow_start_time = ctx->f_basics->first_flow_start_time;
+    double start_time = ctx->f_basics->first_flow_start_time;
 
     uint64_t line_cnt = 0;
     uint64_t yield_cnt = 0;
@@ -46,12 +46,8 @@ int reader_thread(void *arg) {
             fill_fields_from_line(fields, prev_line, BODY);
 
             if (fast_hex_to_u32(fields[FLOW_ID]) == ctx->flowid) {
-                if (first_flow_start_time == 0) {
-                    first_flow_start_time = fast_atof_fixed6(fields[TIMESTAMP]);
-                }
-
                 rec.direction = *fields[DIRECTION];
-                rec.rel_time = fast_atof_fixed6(fields[TIMESTAMP]) - first_flow_start_time;
+                rec.rel_time = fast_atof_fixed6(fields[TIMESTAMP]) - start_time;
                 rec.cwnd = fast_str_to_u32(fields[CWND]);
                 rec.ssthresh = fast_str_to_u32(fields[SSTHRESH]);
                 rec.srtt = fast_str_to_u32(fields[SRTT]);
