@@ -365,6 +365,51 @@ fast_hex_to_u32(const char *s)
     return val;
 }
 
+uint32_t
+fast_str_to_u32(const char *s)
+{
+    unsigned char c;
+    uint32_t val = 0;
+
+    while ((c = (unsigned char)*s++)) {
+        val = val * 10 + (uint32_t)hexval[c];
+    }
+
+    return (val);
+}
+
+double
+fast_atof_fixed6(const char *s)
+{
+    uint64_t int_part = 0;
+    uint32_t frac_part = 0;
+    const char *p = s;
+
+    // Parse integer part
+    while (*p >= '0' && *p <= '9') {
+        int_part = int_part * 10 + (*p - '0');
+        p++;
+    }
+
+    // Skip decimal point if present
+    if (*p == '.') p++;
+
+    // Parse up to 6 fractional digits (microseconds)
+    int digits = 0;
+    while (*p >= '0' && *p <= '9' && digits < 6) {
+        frac_part = frac_part * 10 + (*p - '0');
+        p++;
+        digits++;
+    }
+
+    // Scale fractional part (ensure 6 digits → microsecond precision)
+    while (digits++ < 6)
+        frac_part *= 10;
+
+    // Combine: integer part + fractional part / 1e6
+    return ((double)int_part + (double)frac_part / 1e6);
+}
+
 void
 timeval_subtract(struct timeval *result, const struct timeval *t1,
                  const struct timeval *t2)

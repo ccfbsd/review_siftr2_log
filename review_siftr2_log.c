@@ -47,15 +47,15 @@ int reader_thread(void *arg) {
 
             if (fast_hex_to_u32(fields[FLOW_ID]) == ctx->flowid) {
                 if (first_flow_start_time == 0) {
-                    first_flow_start_time = atof(fields[TIMESTAMP]);
+                    first_flow_start_time = fast_atof_fixed6(fields[TIMESTAMP]);
                 }
 
                 rec.direction = *fields[DIRECTION];
-                rec.rel_time = atof(fields[TIMESTAMP]) - first_flow_start_time;
-                rec.cwnd = my_atol(fields[CWND], BASE10);
-                rec.ssthresh = my_atol(fields[SSTHRESH], BASE10);
-                rec.srtt = my_atol(fields[SRTT], BASE10);
-                rec.data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
+                rec.rel_time = fast_atof_fixed6(fields[TIMESTAMP]) - first_flow_start_time;
+                rec.cwnd = fast_str_to_u32(fields[CWND]);
+                rec.ssthresh = fast_str_to_u32(fields[SSTHRESH]);
+                rec.srtt = fast_str_to_u32(fields[SRTT]);
+                rec.data_sz = fast_str_to_u32(fields[TCP_DATA_SZ]);
 
                 // Try to push; if full, yield briefly (lock-free backoff)
                 while (!queue_push(ctx->queue, &rec)) {
