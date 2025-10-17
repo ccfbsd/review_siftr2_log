@@ -19,7 +19,10 @@ endif
 #  -g		adds debugging information to the executable file
 #  -Wall	turns on most, but not all, compiler warnings
 #  -Wextra	additional warnings not covered by -Wall
-CFLAGS = -std=c23 -O3 -Wall -Wextra -pthread -I.
+#  -march=native generate code optimized for the exact CPU doing the build
+#  -I.		Add the current directory (.) to the compiler’s include search path
+
+CFLAGS = -std=c23 -O3 -Wall -Wextra -pthread -march=native -I.
 RM = rm -f
 
 
