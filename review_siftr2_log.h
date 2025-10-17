@@ -270,7 +270,7 @@ file_has_3lines(const struct file_basic_stats *f_basics)
 }
 
 static inline void
-get_first_line_stats(struct file_basic_stats *f_basics)
+get_first_2lines_stats(struct file_basic_stats *f_basics)
 {
     FILE *file = f_basics->file;
     struct first_line_fields *f_line_stats = NULL;
@@ -280,7 +280,7 @@ get_first_line_stats(struct file_basic_stats *f_basics)
         return;
     }
 
-    /* read the last line of a file */
+    /* read the first line of the file */
     if (fgets(firstLine, MAX_LINE_LENGTH, file) != NULL) {
         /* 6 fields in the first line */
         char *fields[TOTAL_FIRST_LINE_FIELDS];
@@ -315,15 +315,29 @@ get_first_line_stats(struct file_basic_stats *f_basics)
         return;
     }
 
+    {
+        /* read the second line of the file */
+        char line[MAX_LINE_LENGTH] = {};
+        if (fgets(line, sizeof(line), file) == NULL) {
+            PERROR_FUNCTION("Failed to read the second line");
+            return;
+        }
+        char *fields[TOTAL_FIELDS];
+        fill_fields_from_line(fields, line, BODY);
+        f_basics->first_flow_start_time = atof(fields[TIMESTAMP]);
+    }
+
     if (verbose) {
         printf("enable_time: %ld.%ld, siftrver: %s, sysname: %s, sysver: %s, "
-                "ipmode: %s\n\n",
+                "ipmode: %s\n",
                 (long)f_line_stats->enable_time.tv_sec,
                 (long)f_line_stats->enable_time.tv_usec,
                 f_line_stats->siftrver,
                 f_line_stats->sysname,
                 f_line_stats->sysver,
                 f_line_stats->ipmode);
+
+        printf("first flow start at: %.6f\n\n", f_basics->first_flow_start_time);
     }
 
     f_basics->first_line_stats = f_line_stats;
@@ -478,11 +492,12 @@ get_file_basics(struct file_basic_stats *f_basics, const char *file_name)
     }
     rewind(file);
 
-    get_first_line_stats(f_basics);
+    get_first_2lines_stats(f_basics);
     if (f_basics->first_line_stats == NULL) {
         PERROR_FUNCTION("head note not exist");
         return EXIT_FAILURE;
     }
+    assert(f_basics->first_flow_start_time != 0);
 
     get_last_line_stats(f_basics);
     if (f_basics->last_line_stats == NULL) {

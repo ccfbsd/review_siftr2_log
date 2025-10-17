@@ -22,10 +22,9 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     char current_line[max_line_len];
     char previous_line[max_line_len] = {};
 
-    double first_flow_start_time = f_basics->first_flow_start_time;
+    double start_time = f_basics->first_flow_start_time;
 
     double rel_time;
-    double time_stamp;
     uint32_t cwnd;
     uint32_t srtt;
     uint32_t data_sz;
@@ -75,11 +74,7 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                 srtt = my_atol(fields[SRTT], BASE10);
                 data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
 
-                time_stamp = atof(fields[TIMESTAMP]);
-                if (first_flow_start_time == 0) {
-                    first_flow_start_time = time_stamp;
-                }
-                rel_time = time_stamp - first_flow_start_time;
+                rel_time = atof(fields[TIMESTAMP]) - start_time;
 
                 f_info->srtt_sum += srtt;
                 if (f_info->srtt_min > srtt) {
