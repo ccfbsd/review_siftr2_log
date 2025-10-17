@@ -95,6 +95,16 @@ int writer_thread(void *arg) {
         return EXIT_FAILURE;
     }
 
+    // Allocate a large heap buffer for stdio
+    const size_t large_buffer_size = 1u << 20;  // 1 MiB
+    char *io_buffer = malloc(large_buffer_size);
+    if (io_buffer) {
+        // If malloc fails, stdio falls back to default internal buffering.
+        // If setvbuf fails, we still proceed with default buffering,
+        // but keep io_buffer allocated to free later for simplicity.
+        setvbuf(plot_file, io_buffer, _IOFBF, large_buffer_size);
+    }
+
     fprintf(plot_file,
             "##direction" TAB "relative_timestamp" TAB "cwnd" TAB "ssthresh" TAB
             "srtt" TAB "data_size\n");
@@ -151,7 +161,9 @@ int writer_thread(void *arg) {
             sched_yield(); // brief backoff when empty
         }
     }
+    fflush(plot_file);
     fclose(plot_file);
+    free(io_buffer); // only if you allocated it
 
     if (verbose) {
         printf("[%s] yield_cnt =  %" PRIu64 "\n", __FUNCTION__, yield_cnt);
