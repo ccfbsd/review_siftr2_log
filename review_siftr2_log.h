@@ -70,7 +70,7 @@ enum {
 
 /* TCP traffic record fields */
 enum {
-    DIRECTION,      TIMESTAMP,      FLOW_ID,    CWND,   SSTHRESH,
+    FLOW_ID,        DIRECTION,      RELATIVE_TIME,      CWND,   SSTHRESH,
     SNDWIN,         RCVWIN,         FLAG,       FLAG2,  STATE,
     SRTT,           RTO,            SND_BUF_HIWAT,      SND_BUF_CC,
     RCV_BUF_HIWAT,  RCV_BUF_CC,     INFLIGHT_BYTES,     REASS_QLEN,
@@ -316,7 +316,7 @@ get_first_2lines_stats(struct file_basic_stats *f_basics)
         }
         char *fields[TOTAL_FIELDS];
         fill_fields_from_line(fields, line, BODY);
-        f_basics->first_flow_start_time = fast_atof_fixed6(fields[TIMESTAMP]);
+        f_basics->first_flow_start_time = fast_hex_to_u32(fields[RELATIVE_TIME]);
     }
 
     if (verbose) {

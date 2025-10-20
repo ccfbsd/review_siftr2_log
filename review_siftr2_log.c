@@ -47,7 +47,7 @@ int reader_thread(void *arg) {
 
             if (fast_hex_to_u32(fields[FLOW_ID]) == ctx->flowid) {
                 rec.direction = *fields[DIRECTION];
-                rec.rel_time = fast_atof_fixed6(fields[TIMESTAMP]) - start_time;
+                rec.rel_time = fast_hex_to_u32(fields[RELATIVE_TIME]) - start_time;
                 rec.cwnd = fast_str_to_u32(fields[CWND]);
                 rec.ssthresh = fast_str_to_u32(fields[SSTHRESH]);
                 rec.srtt = fast_str_to_u32(fields[SRTT]);
@@ -150,9 +150,9 @@ int writer_thread(void *arg) {
             }
 
             fprintf(plot_file,
-                    "%c" TAB "%.6f" TAB "%8u" TAB "%10u" TAB "%6u" TAB "%5u\n",
-                    rec.direction, rec.rel_time, rec.cwnd, rec.ssthresh,
-                    rec.srtt, rec.data_sz);
+                    "%c" TAB "%.3f" TAB "%8u" TAB "%10u" TAB "%6u" TAB "%5u\n",
+                    rec.direction, (float)rec.rel_time / 1000.0f, rec.cwnd,
+                    rec.ssthresh, rec.srtt, rec.data_sz);
         } else {
             if (queue_is_done(ctx->queue) && queue_is_empty(ctx->queue)) {
                 break; // nothing left to consume

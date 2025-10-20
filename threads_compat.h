@@ -39,7 +39,7 @@ thrd_create(thrd_t *thr, int (*func)(void*), void *arg)
 
 typedef struct {
     char        direction;  // 'i' or 'o'
-    double      rel_time;
+    uint32_t    rel_time;
     uint32_t    cwnd;
     uint32_t    ssthresh;
     uint32_t    srtt;
