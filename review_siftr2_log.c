@@ -25,7 +25,7 @@ int reader_thread(void *arg) {
     char *cur_line = buf1;
     char *prev_line = buf2;
     bool have_prev = false;
-    double start_time = ctx->f_basics->first_flow_start_time;
+    uint32_t start_time = ctx->f_basics->first_flow_start_time;
 
     char *fields[TOTAL_FIELDS];
     uint64_t line_cnt = 0;
@@ -149,7 +149,7 @@ int writer_thread(void *arg) {
 
             fprintf(plot_file,
                     "%c" TAB "%.3f" TAB "%8u" TAB "%10u" TAB "%6u" TAB "%5u\n",
-                    rec.direction, (float)rec.rel_time / 1000.0f, rec.cwnd,
+                    rec.direction, rec.rel_time / 1000.0f, rec.cwnd,
                     rec.ssthresh, rec.srtt, rec.data_sz);
         } else {
             if (queue_is_done(ctx->queue) && queue_is_empty(ctx->queue)) {

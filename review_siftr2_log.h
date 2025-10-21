@@ -127,7 +127,7 @@ struct file_basic_stats {
     uint64_t    num_lines;
     uint32_t    flow_count;
     char        prefix[MAX_NAME_LENGTH - 20];
-    double first_flow_start_time;
+    uint32_t    first_flow_start_time;
     struct flow_info *flow_list;
     struct first_line_fields *first_line_stats;
     struct last_line_fields *last_line_stats;
@@ -329,7 +329,7 @@ get_first_2lines_stats(struct file_basic_stats *f_basics)
                 f_line_stats->sysver,
                 f_line_stats->ipmode);
 
-        printf("first flow start at: %.6f\n\n", f_basics->first_flow_start_time);
+        printf("first flow start at: %.3f\n\n", f_basics->first_flow_start_time / 1000.0f);
     }
 
     f_basics->first_line_stats = f_line_stats;
