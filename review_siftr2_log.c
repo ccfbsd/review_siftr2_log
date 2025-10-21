@@ -27,6 +27,7 @@ int reader_thread(void *arg) {
     bool have_prev = false;
     double start_time = ctx->f_basics->first_flow_start_time;
 
+    char *fields[TOTAL_FIELDS];
     uint64_t line_cnt = 0;
     uint64_t yield_cnt = 0;
     record_t rec;
@@ -41,23 +42,20 @@ int reader_thread(void *arg) {
     line_cnt++; // Increment line counter, now shall be at the 2nd line
 
     while (fgets(cur_line, line_len, ctx->f_basics->file)) {
-        if (have_prev) {
-            char *fields[TOTAL_FIELDS];
+        if (have_prev && (fast_flowid_parse(prev_line) == ctx->flowid)) {
             fill_fields_from_line(fields, prev_line, BODY);
 
-            if (fast_hex_to_u32(fields[FLOW_ID]) == ctx->flowid) {
-                rec.direction = *fields[DIRECTION];
-                rec.rel_time = fast_hex_to_u32(fields[RELATIVE_TIME]) - start_time;
-                rec.cwnd = fast_str_to_u32(fields[CWND]);
-                rec.ssthresh = fast_str_to_u32(fields[SSTHRESH]);
-                rec.srtt = fast_str_to_u32(fields[SRTT]);
-                rec.data_sz = fast_str_to_u32(fields[TCP_DATA_SZ]);
+            rec.direction = *fields[DIRECTION];
+            rec.rel_time = fast_hex_to_u32(fields[RELATIVE_TIME]) - start_time;
+            rec.cwnd = fast_str_to_u32(fields[CWND]);
+            rec.ssthresh = fast_str_to_u32(fields[SSTHRESH]);
+            rec.srtt = fast_str_to_u32(fields[SRTT]);
+            rec.data_sz = fast_str_to_u32(fields[TCP_DATA_SZ]);
 
-                // Try to push; if full, yield briefly (lock-free backoff)
-                while (!queue_push(ctx->queue, &rec)) {
-                    yield_cnt++;
-                    sched_yield(); // or nanosleep for gentler backoff
-                }
+            // Try to push; if full, yield briefly (lock-free backoff)
+            while (!queue_push(ctx->queue, &rec)) {
+                yield_cnt++;
+                sched_yield(); // or nanosleep for gentler backoff
             }
         }
         line_cnt++;

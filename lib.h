@@ -366,6 +366,26 @@ fast_hex_to_u32(const char *s)
 }
 
 inline uint32_t
+fast_flowid_parse(const char *startp)
+{
+    unsigned char c;
+    const char *p = startp;
+    uint32_t val = 0;
+    int digits = 0;
+
+    assert(p[8] == ',');  // flowid is a 8-digit-hex at the start of the line
+
+    while ((c = (unsigned char)*p++)) {
+        val = (val << 4) | (uint32_t)hexval[c];
+        digits++;
+        if (digits == 8)
+            break;
+    }
+
+    return val;
+}
+
+inline uint32_t
 fast_str_to_u32(const char *s)
 {
     unsigned char c;
