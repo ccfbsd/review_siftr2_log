@@ -47,10 +47,10 @@ int reader_thread(void *arg) {
 
             rec.direction = *fields[DIRECTION];
             rec.rel_time = fast_hex_to_u32(fields[RELATIVE_TIME]) - start_time;
-            rec.cwnd = fast_str_to_u32(fields[CWND]);
-            rec.ssthresh = fast_str_to_u32(fields[SSTHRESH]);
-            rec.srtt = fast_str_to_u32(fields[SRTT]);
-            rec.data_sz = fast_str_to_u32(fields[TCP_DATA_SZ]);
+            rec.cwnd = fast_hex_to_u32(fields[CWND]);
+            rec.ssthresh = fast_hex_to_u32(fields[SSTHRESH]);
+            rec.srtt = fast_hex_to_u32(fields[SRTT]);
+            rec.data_sz = fast_hex_to_u32(fields[TCP_DATA_SZ]);
 
             // Try to push; if full, yield briefly (lock-free backoff)
             while (!queue_push(ctx->queue, &rec)) {
