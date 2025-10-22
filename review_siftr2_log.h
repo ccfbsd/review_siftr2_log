@@ -34,9 +34,8 @@ enum {
     ENABLE_TIME_SECS,
     ENABLE_TIME_USECS,
     SIFTRVER,
-    SYSNAME,
-    SYSVER,
     IPMODE,
+    SYSVER,
     TOTAL_FIRST_LINE_FIELDS,
 };
 
@@ -297,12 +296,11 @@ get_first_2lines_stats(struct file_basic_stats *f_basics)
         f_line_stats->enable_time.tv_usec = GET_VALUE(fields[ENABLE_TIME_USECS]);
         snprintf(f_line_stats->siftrver, sizeof(f_line_stats->siftrver), "%s",
                  next_sub_str_from(fields[SIFTRVER], EQUAL_DELIMITER));
-        snprintf(f_line_stats->sysname, sizeof(f_line_stats->sysname), "%s",
-                 next_sub_str_from(fields[SYSNAME], EQUAL_DELIMITER));
-        snprintf(f_line_stats->sysver, sizeof(f_line_stats->sysver), "%s",
-                 next_sub_str_from(fields[SYSVER], EQUAL_DELIMITER));
         snprintf(f_line_stats->ipmode, sizeof(f_line_stats->ipmode), "%s",
                  next_sub_str_from(fields[IPMODE], EQUAL_DELIMITER));
+        snprintf(f_line_stats->sysver, sizeof(f_line_stats->sysver), "%s",
+                 next_sub_str_from(fields[SYSVER], EQUAL_DELIMITER));
+
     } else {
         PERROR_FUNCTION("Failed to read the first line.");
         return;
@@ -320,14 +318,12 @@ get_first_2lines_stats(struct file_basic_stats *f_basics)
     }
 
     if (verbose) {
-        printf("enable_time: %ld.%ld, siftrver: %s, sysname: %s, sysver: %s, "
-                "ipmode: %s\n",
+        printf("enable_time: %ld.%ld, siftrver: %s, ipmode: %s, sysver: %s\n",
                 (long)f_line_stats->enable_time.tv_sec,
                 (long)f_line_stats->enable_time.tv_usec,
                 f_line_stats->siftrver,
-                f_line_stats->sysname,
-                f_line_stats->sysver,
-                f_line_stats->ipmode);
+                f_line_stats->ipmode,
+                f_line_stats->sysver);
 
         printf("first flow start at: %.3f\n\n", f_basics->first_flow_start_time / 1000.0f);
     }
