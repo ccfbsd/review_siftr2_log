@@ -40,9 +40,8 @@ enum {
 
 struct first_line_fields {
     char        siftrver[EIGHT_BYTES_LEN];
-    char        sysname[EIGHT_BYTES_LEN];
-    char        sysver[EIGHT_BYTES_LEN];
     char        ipmode[EIGHT_BYTES_LEN];
+    char        sysver[MAX_NAME_LENGTH];
     struct timeval enable_time;
 };
 
