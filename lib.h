@@ -344,7 +344,7 @@ my_atol(const char *str, int base)
     return number;
 }
 
-const int8_t hexval[256] = {
+const uint8_t hexval[256] = {
     ['0']=0, ['1']=1, ['2']=2, ['3']=3, ['4']=4, ['5']=5, ['6']=6, ['7']=7,
     ['8']=8, ['9']=9,
     ['A']=10, ['B']=11, ['C']=12, ['D']=13, ['E']=14, ['F']=15,
@@ -407,7 +407,7 @@ fast_hex8_to_u32(const char *s)
     // -------- Fallback scalar version --------
     uint8_t bytes[8];
     for (int i = 0; i < 8; i++) {
-        bytes[i] = (uint8_t)hexval[s[i]];
+        bytes[i] = hexval[s[i]];
     }
 #endif
 
@@ -435,19 +435,10 @@ fast_hex_to_u32(const char *s)
 inline uint32_t
 fast_flowid_parse(const char *startp)
 {
-    unsigned char c;
-    const char *p = startp;
     uint32_t val = 0;
-    int digits = 0;
 
-    assert(p[8] == ',');  // flowid is a 8-digit-hex at the start of the line
-
-    while ((c = (unsigned char)*p++)) {
-        val = (val << 4) | (uint32_t)hexval[c];
-        digits++;
-        if (digits == 8)
-            break;
-    }
+    for (int i = 0; i < 8; i++)
+        val = (val << 4) | (uint32_t)hexval[(uint8_t)startp[i]];
 
     return val;
 }
