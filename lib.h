@@ -351,6 +351,74 @@ const int8_t hexval[256] = {
     ['a']=10, ['b']=11, ['c']=12, ['d']=13, ['e']=14, ['f']=15
 };
 
+#if defined(__x86_64__) || defined(_M_X64)
+    #include <immintrin.h>
+#elif defined(__aarch64__)
+    #include <arm_neon.h>
+#endif
+
+// SIMD code for fixed 8-digit hex string
+inline uint32_t
+fast_hex8_to_u32(const char *s)
+{
+#if defined(__x86_64__) || defined(_M_X64)
+    // -------- x86_64 SSE/AVX version --------
+    // Load 8 ASCII hex characters
+    __m128i chars = _mm_loadl_epi64((const __m128i *)s);
+    // Normalize lowercase to uppercase ('a'-'f' to 'A'-'F')
+    __m128i upper = _mm_andnot_si128(_mm_set1_epi8(0x20), chars);
+    // Compute 0-9 values
+    __m128i sub_0 = _mm_sub_epi8(upper, _mm_set1_epi8('0'));
+    // Compute A-F values
+    __m128i sub_A = _mm_sub_epi8(upper, _mm_set1_epi8('A'));
+    // Mask for A-F digits: (upper > '9')
+    __m128i ge_A  = _mm_cmpgt_epi8(upper, _mm_set1_epi8('9'));
+
+    // Blend: if ge_A mask, use sub_A + 10, else sub_0
+#if defined(__SSE4_1__)
+    __m128i vals  = _mm_blendv_epi8(sub_0, _mm_add_epi8(sub_A, _mm_set1_epi8(10)), ge_A);
+#else
+    __m128i vals  = _mm_or_si128(_mm_andnot_si128(ge_A, sub_0),
+                                 _mm_and_si128(ge_A, _mm_add_epi8(sub_A, _mm_set1_epi8(10))));
+#endif
+    // Store bytes into scalar array
+    uint8_t bytes[8];
+    _mm_storel_epi64((__m128i *)bytes, vals);
+
+#elif defined(__aarch64__)
+    // -------- ARM64 NEON version --------
+    // Load 8 ASCII hex characters
+    uint8x8_t chars = vld1_u8((const uint8_t *)s);
+    // Normalize lowercase to uppercase ('a'-'f' to 'A'-'F')
+    uint8x8_t upper = vand_u8(chars, vdup_n_u8(~0x20)); // normalize
+    // Compute 0-9 values
+    uint8x8_t sub_0 = vsub_u8(upper, vdup_n_u8('0'));
+    // Compute A-F values
+    uint8x8_t sub_A = vsub_u8(upper, vdup_n_u8('A'));
+    // Mask for A-F digits: (upper > '9')
+    uint8x8_t ge_A  = vcgt_u8(upper, vdup_n_u8('9'));
+    uint8x8_t vals  = vbsl_u8(ge_A, vadd_u8(sub_A, vdup_n_u8(10)), sub_0);
+
+    // Store bytes into scalar array
+    uint8_t bytes[8];
+    vst1_u8(bytes, vals);
+
+#else
+    // -------- Fallback scalar version --------
+    uint8_t bytes[8];
+    for (int i = 0; i < 8; i++) {
+        bytes[i] = (uint8_t)hexval[s[i]];
+    }
+#endif
+
+    // ---------- Combine 8 nibbles into 32-bit integer ----------
+    uint32_t v = 0;
+    for (int i = 0; i < 8; i++)
+        v = (v << 4) | (uint32_t)(bytes[i] & 0xF);
+
+    return (v);
+}
+
 inline uint32_t
 fast_hex_to_u32(const char *s)
 {

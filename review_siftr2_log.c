@@ -42,7 +42,7 @@ int reader_thread(void *arg) {
     line_cnt++; // Increment line counter, now shall be at the 2nd line
 
     while (fgets(cur_line, line_len, ctx->f_basics->file)) {
-        if (have_prev && (fast_flowid_parse(prev_line) == ctx->flowid)) {
+        if (have_prev && (fast_hex8_to_u32(prev_line) == ctx->flowid)) {
             fill_fields_from_line(fields, prev_line, BODY);
 
             rec.direction = *fields[DIRECTION];
