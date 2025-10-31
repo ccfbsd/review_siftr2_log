@@ -25,6 +25,7 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     uint32_t start_time = f_basics->first_flow_start_time;
     uint32_t rel_time;
     uint32_t cwnd;
+    uint32_t ssthresh;
     uint32_t srtt;
     uint32_t data_sz;
 
@@ -69,11 +70,11 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
             fill_fields_from_line(fields, previous_line, BODY);
 
             if (my_atol(fields[FLOW_ID], BASE16) == flowid) {
-                cwnd = my_atol(fields[CWND], BASE10);
-                srtt = my_atol(fields[SRTT], BASE10);
-                data_sz = my_atol(fields[TCP_DATA_SZ], BASE10);
-
                 rel_time = my_atol(fields[RELATIVE_TIME], BASE16) - start_time;
+                cwnd = my_atol(fields[CWND], BASE16);
+                ssthresh = my_atol(fields[CWND], BASE16);
+                srtt = my_atol(fields[SRTT], BASE16);
+                data_sz = my_atol(fields[TCP_DATA_SZ], BASE16);
 
                 f_info->srtt_sum += srtt;
                 if (f_info->srtt_min > srtt) {
@@ -111,11 +112,10 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                     f_info->dir_in++;
                 }
 
-                fprintf(plot_file, "%s" TAB "%.3f" TAB "%8u" TAB
-                        "%10s" TAB "%6s" TAB "%5u"
-                        "\n",
-                        fields[DIRECTION], rel_time / 1000.0f, cwnd,
-                        fields[SSTHRESH], fields[SRTT], data_sz);
+                fprintf(plot_file,
+                        "%c" TAB "%.3f" TAB "%8u" TAB "%10u" TAB "%6u" TAB "%5u\n",
+                        *fields[DIRECTION], rel_time / 1000.0f, cwnd,
+                        ssthresh, srtt, data_sz);
             }
         }
 
