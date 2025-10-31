@@ -70,7 +70,7 @@ enum {
 
 /* TCP traffic record fields */
 enum {
-    DIRECTION,      TIMESTAMP,      FLOW_ID,    CWND,   SSTHRESH,
+    FLOW_ID,        DIRECTION,      RELATIVE_TIME,      CWND,   SSTHRESH,
     SNDWIN,         RCVWIN,         FLAG,       FLAG2,  STATE,
     SRTT,           RTO,            SND_BUF_HIWAT,      SND_BUF_CC,
     RCV_BUF_HIWAT,  RCV_BUF_CC,     INFLIGHT_BYTES,     REASS_QLEN,
@@ -127,7 +127,7 @@ struct file_basic_stats {
     uint64_t    num_lines;
     uint32_t    flow_count;
     char        prefix[MAX_NAME_LENGTH - 20];
-    double first_flow_start_time;
+    uint32_t    first_flow_start_time;
     struct flow_info *flow_list;
     struct first_line_fields *first_line_stats;
     struct last_line_fields *last_line_stats;
@@ -324,7 +324,7 @@ get_first_2lines_stats(struct file_basic_stats *f_basics)
         }
         char *fields[TOTAL_FIELDS];
         fill_fields_from_line(fields, line, BODY);
-        f_basics->first_flow_start_time = atof(fields[TIMESTAMP]);
+        f_basics->first_flow_start_time = my_atol(fields[RELATIVE_TIME], BASE16);
     }
 
     if (verbose) {
@@ -337,7 +337,7 @@ get_first_2lines_stats(struct file_basic_stats *f_basics)
                 f_line_stats->sysver,
                 f_line_stats->ipmode);
 
-        printf("first flow start at: %.6f\n\n", f_basics->first_flow_start_time);
+        printf("first flow start at: %.3f\n\n", f_basics->first_flow_start_time / 1000.0f);
     }
 
     f_basics->first_line_stats = f_line_stats;
