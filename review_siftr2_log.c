@@ -72,7 +72,7 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
             if (my_atol(fields[FLOW_ID], BASE16) == flowid) {
                 rel_time = my_atol(fields[RELATIVE_TIME], BASE16) - start_time;
                 cwnd = my_atol(fields[CWND], BASE16);
-                ssthresh = my_atol(fields[CWND], BASE16);
+                ssthresh = my_atol(fields[SSTHRESH], BASE16);
                 srtt = my_atol(fields[SRTT], BASE16);
                 data_sz = my_atol(fields[TCP_DATA_SZ], BASE16);
 
