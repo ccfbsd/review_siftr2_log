@@ -5,7 +5,7 @@ compile examples:
   
 compile in FreeBSD  
 % gmake  
-clang -std=c23 -O3 -Wall -Wextra -pthread -march=native -I. -o review_siftr2_log review_siftr2_log.c  
+clang -std=c23 -O3 -msse4.1 -mavx2 -mfma -Wall -Wextra -pthread -march=native -I. -o review_siftr2_log review_siftr2_log.c  
 %  
   
 compile in MacOS  
@@ -15,49 +15,46 @@ clang -std=c23 -O3 -Wall -Wextra -pthread -march=native -I. -o review_siftr2_log
   
 run examples:  
   
-% ./review_siftr2_log -f siftr2.log  
-input file name: siftr2.log  
-siftr version: 2.2  
-flow id list:  
- id:dc420c5e (127.0.0.1:5201<->127.0.0.1:21988) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:24/24  
- id:a6912212 (127.0.0.1:21988<->127.0.0.1:5201) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:25/25  
- id:96bfb44e (127.0.0.1:5201<->127.0.0.1:36271) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:3525401/3525401  
- id:9fbb68ef (127.0.0.1:36271<->127.0.0.1:5201) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:3525457/3525457  
- id:89cafe54 (127.0.0.1:5201<->127.0.0.1:57233) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:3612651/3612651  
- id:b583779a (127.0.0.1:57233<->127.0.0.1:5201) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:3612708/3612708  
+% ll siftr2.log  
+-rw-r--r--  1 cc wheel  961M Oct 31 09:26 siftr2.log  
   
-starting_time: 2025-10-01 11:30:37.909800 (1759332637.909800)  
-ending_time: 2025-10-01 11:30:47.920214 (1759332647.920214)  
+% ~/review_siftr2_log/review_siftr2_log -f siftr2.log  
+input file name: siftr2.log  
+siftr version: 2.3  
+flow id list:  
+ id:5f30cad7 (127.0.0.1:54321<->127.0.0.1:5201) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:10054633/10054633  
+  
+starting_time: 2025-10-31 09:26:22.740464 (1761917182.740464)  
+ending_time: 2025-10-31 09:26:32.749997 (1761917192.749997)  
 log duration: 10.01 seconds  
   
-this program execution time: 0.002 seconds  
+this program execution time: 0.000 seconds  
 %  
   
-% ./review_siftr2_log -f siftr2.log -s b583779a    
+% ~/review_siftr2_log/review_siftr2_log -f siftr2.log -s 5f30cad7  
 input file name: siftr2.log  
-siftr version: 2.2  
+siftr version: 2.3  
 flow id list:  
- id:dc420c5e (127.0.0.1:5201<->127.0.0.1:21988) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:24/24  
- id:a6912212 (127.0.0.1:21988<->127.0.0.1:5201) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:25/25  
- id:96bfb44e (127.0.0.1:5201<->127.0.0.1:36271) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:3525401/3525401  
- id:9fbb68ef (127.0.0.1:36271<->127.0.0.1:5201) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:3525457/3525457  
- id:89cafe54 (127.0.0.1:5201<->127.0.0.1:57233) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:3612651/3612651  
- id:b583779a (127.0.0.1:57233<->127.0.0.1:5201) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:3612708/3612708  
+ id:5f30cad7 (127.0.0.1:54321<->127.0.0.1:5201) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:10054633/10054633  
   
-starting_time: 2025-10-01 11:30:37.909800 (1759332637.909800)  
-ending_time: 2025-10-01 11:30:47.920214 (1759332647.920214)  
+starting_time: 2025-10-31 09:26:22.740464 (1761917182.740464)  
+ending_time: 2025-10-31 09:26:32.749997 (1761917192.749997)  
 log duration: 10.01 seconds  
-input flow id is: b583779a  
-input file has total lines: 14276268  
-plot_file_name: plot_b583779a.txt  
+input flow id is: 5f30cad7  
+input file has total lines: 10054635  
+plot_file_name: plot_5f30cad7.txt  
 ++++++++++++++++++++++++++++++ summary ++++++++++++++++++++++++++++  
-  127.0.0.1:57233->127.0.0.1:5201 flowid: b583779a  
-input flow data_pkt_cnt: 2402881, fragment_cnt: 963, fragment_ratio: 0.000  
-           avg_payload: 16328, min_payload: 8, max_payload: 16332 bytes  
-           avg_srtt: 364, min_srtt: 218, max_srtt: 5218 µs  
-           avg_cwnd: 1402416, min_cwnd: 32664, max_cwnd: 1402809 bytes  
-           has 3612708 useful records (2402882 outputs, 1209826 inputs)  
+  127.0.0.1:54321->127.0.0.1:5201 flowid: 5f30cad7  
+input flow data_pkt_cnt: 6702535, fragment_cnt: 6846, fragment_ratio: 0.001  
+           avg_payload: 16319, min_payload: 12, max_payload: 16332 bytes  
+           avg_srtt: 262, min_srtt: 218, max_srtt: 5468 µs  
+           avg_cwnd: 1403505, min_cwnd: 32664, max_cwnd: 1404589 bytes  
+           has 10054633 useful records (6702538 outputs, 3352095 inputs)  
   
-this program execution time: 5.320 seconds  
+this program execution time: 3.621 seconds  
   
-%  
+% ll plot_5f30cad7.txt  
+-rw-r--r--  1 cc wheel  393M Oct 31 09:34 plot_5f30cad7.txt  
+  
+Above example shows the program can process 10 million records in 3.621 seconds,  
+which is around 2.8 million records per-second.  
