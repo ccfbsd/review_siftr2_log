@@ -70,7 +70,7 @@ enum {
 /* TCP traffic record fields */
 enum {
     FLOW_ID,        DIRECTION,      RELATIVE_TIME,      CWND,   SSTHRESH,
-    SNDWIN,         RCVWIN,         FLAG,       FLAG2,  STATE,
+    SNDWIN,         RCVWIN,         FLAG,       FLAG2,
     SRTT,           RTO,            SND_BUF_HIWAT,      SND_BUF_CC,
     RCV_BUF_HIWAT,  RCV_BUF_CC,     INFLIGHT_BYTES,     REASS_QLEN,
     TCP_DATA_SZ,
