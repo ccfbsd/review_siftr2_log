@@ -44,14 +44,6 @@ _Static_assert(QUEUE_SIZE > 0, "QUEUE_SIZE must be > 0");
 _Static_assert((QUEUE_SIZE & (QUEUE_SIZE - 1)) == 0, "QUEUE_SIZE must be a power of two");
 _Static_assert(QUEUE_MASK == (QUEUE_SIZE - 1), "QUEUE_MASK must equal QUEUE_SIZE - 1");
 
-// siftr2 log header
-struct first_line_fields {
-    char        siftrver[EIGHT_BYTES_LEN];
-    char        ipmode[EIGHT_BYTES_LEN];
-    char        sysver[MAX_NAME_LENGTH];
-    struct timeval enable_time;
-};
-
 struct pkt_info {
     uint32_t    flowid;     /* flowid of the connection */
     tcp_seq     th_seq;     /* TCP sequence number */

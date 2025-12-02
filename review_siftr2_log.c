@@ -10,8 +10,6 @@
 #include "review_siftr2_log.h"
 #include "threads_compat.h"
 
-bool verbose = false;
-
 int reader_thread(void *arg) {
     struct {
         struct file_basic_stats *f_basics;
@@ -29,6 +27,7 @@ int reader_thread(void *arg) {
 
     char *fields[TOTAL_FIELDS];
     uint64_t line_cnt = 0;
+    uint64_t num_records = 0;
     uint64_t yield_cnt = 0;
     record_t rec;
 
@@ -38,35 +37,72 @@ int reader_thread(void *arg) {
         PERROR_FUNCTION("Failed to read first line");
         return EXIT_FAILURE;
     }
-
     line_cnt++; // Increment line counter, now shall be at the 2nd line
 
-    while (fgets(cur_line, line_len, ctx->f_basics->file)) {
-        if (have_prev && (fast_hex8_to_u32(prev_line) == ctx->flowid)) {
-            fill_fields_from_line(fields, prev_line, BODY);
+    if (is_rec_fmt_binary) {
+        struct pkt_node node;
+        size_t rec_size = sizeof(struct pkt_node);
 
-            rec.direction = *fields[DIRECTION];
-            rec.rel_time = fast_hex_to_u32(fields[RELATIVE_TIME]) - start_time;
-            rec.cwnd = fast_hex_to_u32(fields[CWND]);
-            rec.ssthresh = fast_hex_to_u32(fields[SSTHRESH]);
-            rec.srtt = fast_hex_to_u32(fields[SRTT]);
-            rec.data_sz = fast_hex_to_u32(fields[TCP_DATA_SZ]);
-
-            // Try to push; if full, yield briefly (lock-free backoff)
-            while (!queue_push(ctx->queue, &rec)) {
-                yield_cnt++;
-                sched_yield(); // or nanosleep for gentler backoff
+        while (true) {
+            long pos = ftell(ctx->f_basics->file);
+            if (pos < 0) {
+                PERROR_FUNCTION("ftell");
+                break;
             }
+            if ((long)(pos + rec_size) > ctx->f_basics->last_line_offset) {
+                // no more record: would cross into the footer — stop.
+                break;
+            }
+            fread(&node, 1, rec_size, ctx->f_basics->file);
+
+            if (node.flowid == ctx->flowid) {
+                // Build record_t from node
+                // Adjust field names and direction mapping to your definition
+                rec.direction = (node.direction == DIR_IN) ? 'i' : 'o';
+                rec.rel_time  = node.tval - start_time;
+                rec.cwnd      = node.snd_cwnd;
+                rec.ssthresh  = node.snd_ssthresh;
+                rec.srtt      = node.srtt;
+                rec.data_sz   = node.data_sz;
+
+                // Push to queue (same backoff as before)
+                while (!queue_push(ctx->queue, &rec)) {
+                    yield_cnt++;
+                    sched_yield();
+                }
+            }
+            num_records++;
         }
-        line_cnt++;
-        char *tmp = cur_line; cur_line = prev_line; prev_line = tmp;
-        have_prev = true;
+    } else {
+        line_cnt++; // Increment line counter, now shall be at the 2nd line
+        while (fgets(cur_line, line_len, ctx->f_basics->file)) {
+            if (have_prev && (fast_hex8_to_u32(prev_line) == ctx->flowid)) {
+                fill_fields_from_line(fields, prev_line, BODY);
+
+                rec.direction = *fields[DIRECTION];
+                rec.rel_time = fast_hex_to_u32(fields[RELATIVE_TIME]) - start_time;
+                rec.cwnd = fast_hex_to_u32(fields[CWND]);
+                rec.ssthresh = fast_hex_to_u32(fields[SSTHRESH]);
+                rec.srtt = fast_hex_to_u32(fields[SRTT]);
+                rec.data_sz = fast_hex_to_u32(fields[TCP_DATA_SZ]);
+
+                // Try to push; if full, yield briefly (lock-free backoff)
+                while (!queue_push(ctx->queue, &rec)) {
+                    yield_cnt++;
+                    sched_yield(); // or nanosleep for gentler backoff
+                }
+            }
+            line_cnt++;
+            char *tmp = cur_line; cur_line = prev_line; prev_line = tmp;
+            have_prev = true;
+        }
     }
 
     // Signal completion
     queue_set_done(ctx->queue);
 
     ctx->f_basics->num_lines = line_cnt;
+    ctx->f_basics->num_records = num_records;
 
     if (verbose) {
         printf("[%s] yield_cnt =  %" PRIu64 "\n", __FUNCTION__, yield_cnt);
