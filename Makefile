@@ -15,12 +15,32 @@ UNAME := $(shell uname)
 
 # Default compiler settings
 CC = gcc
-CFLAGS = -std=c23 -O3 -msse4.1 -mavx2 -mfma -Wall -Wextra -pthread -march=native -I.
 
-# Change compiler based on OS
+# Common flags (used by all builds)
+COMMON_CFLAGS = -std=c23 -Wall -Wextra -pthread -I.
+
+# Release / optimized flags (default)
+RELEASE_CFLAGS = -O3 -march=native -msse4.1 -mavx2 -mfma -DNDEBUG
+
+# Debug flags
+DEBUG_CFLAGS = -O0 -g3 -fno-omit-frame-pointer -DDEBUG
+
+# Default build mode
+BUILD ?= release
+
+# Select flags based on build mode
+ifeq ($(BUILD),debug)
+    CFLAGS = $(COMMON_CFLAGS) $(DEBUG_CFLAGS)
+else
+    CFLAGS = $(COMMON_CFLAGS) $(RELEASE_CFLAGS)
+endif
+
+#CFLAGS = -std=c23 -O3 -msse4.1 -mavx2 -mfma -Wall -Wextra -pthread -march=native -I.
+
+# OS-specific overrides
 ifeq ($(UNAME), Darwin)
     CC = clang
-    CFLAGS = -std=c23 -O3 -Wall -Wextra -pthread -march=native -I.
+    RELEASE_CFLAGS = -O3 -march=native -DNDEBUG
 endif
 
 ifeq ($(UNAME), FreeBSD)
@@ -39,7 +59,13 @@ all: $(TARGET)
 $(TARGET): $(TARGET).c
 	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c
 
-.PHONY: depend clean
+.PHONY: clean debug release
+
+debug:
+	$(MAKE) BUILD=debug
+
+release:
+	$(MAKE) BUILD=release
 
 clean:
 	$(RM) $(TARGET)

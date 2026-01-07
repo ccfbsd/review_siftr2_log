@@ -113,6 +113,7 @@ enum {
 void
 translate_tflags(uint32_t flags, char str_array[], size_t arr_size)
 {
+    (void)arr_size; // C idiom to handle warning: unused parameter 'arr_size'
     assert(arr_size >= (32 * sizeof("TF_CONGRECOVERY")));
 
     if (flags == 0) {
@@ -225,6 +226,7 @@ translate_tflags(uint32_t flags, char str_array[], size_t arr_size)
 void
 translate_tflags2(uint32_t flags, char str_array[], size_t arr_size)
 {
+    (void)arr_size; // C idiom to handle warning: unused parameter 'arr_size'
     assert(arr_size >= (23 * sizeof("TF2_PROC_SACK_PROHIBIT")));
 
     if (flags == 0) {
@@ -350,7 +352,7 @@ const uint8_t hexval[256] = {
 #endif
 
 // SIMD code for fixed 8-digit hex string
-inline uint32_t
+static inline uint32_t
 fast_hex8_to_u32(const char *s)
 {
 #if defined(__x86_64__) || defined(_M_X64)
@@ -411,7 +413,7 @@ fast_hex8_to_u32(const char *s)
     return (v);
 }
 
-inline uint32_t
+static inline uint32_t
 fast_hex_to_u32(const char *s)
 {
     unsigned char c;
