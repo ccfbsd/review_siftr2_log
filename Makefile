@@ -35,8 +35,6 @@ else
     CFLAGS = $(COMMON_CFLAGS) $(RELEASE_CFLAGS)
 endif
 
-#CFLAGS = -std=c23 -O3 -msse4.1 -mavx2 -mfma -Wall -Wextra -pthread -march=native -I.
-
 # OS-specific overrides
 ifeq ($(UNAME), Darwin)
     CC = clang
@@ -48,7 +46,6 @@ ifeq ($(UNAME), FreeBSD)
 endif
 
 RM = rm -f
-
 
 # the build target executable:
 TARGET = review_siftr2_log
