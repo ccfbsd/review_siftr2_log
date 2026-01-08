@@ -45,7 +45,7 @@ ifeq ($(UNAME), FreeBSD)
     CC = clang
 endif
 
-RM = rm -f
+RM = rm -rf
 
 # the build target executable:
 TARGET = review_siftr2_log
@@ -66,3 +66,4 @@ release:
 
 clean:
 	$(RM) $(TARGET)
+	[ ! -d $(TARGET).dSYM ] || $(RM) $(TARGET).dSYM
