@@ -38,13 +38,6 @@ enum {
     PER_FLOW_STRING_LENGTH = (INET6_ADDRSTRLEN*2 + 5*2 + 1),
 };
 
-struct first_line_fields {
-    char        siftrver[EIGHT_BYTES_LEN];
-    char        ipmode[EIGHT_BYTES_LEN];
-    char        sysver[MAX_NAME_LENGTH];
-    struct timeval enable_time;
-};
-
 struct pkt_info {
     uint32_t    flowid;     /* flowid of the connection */
     tcp_seq     th_seq;     /* TCP sequence number */

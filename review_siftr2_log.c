@@ -8,16 +8,14 @@
  ============================================================================
  */
 #include "review_siftr2_log.h"
-
 #include <getopt.h>
-
-bool verbose = false;
 
 void
 stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                      char plot_file_name[])
 {
     uint64_t line_cnt = 0;
+    uint64_t num_records = 0;
     uint32_t max_line_len = f_basics->last_line_stats->line_len;
     char current_line[max_line_len];
     char previous_line[max_line_len] = {};
@@ -62,19 +60,28 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
             "##direction" TAB "relative_timestamp" TAB "cwnd" TAB
             "ssthresh" TAB "srtt" TAB "data_size"
             "\n");
+    if (is_rec_fmt_binary) {
+        struct pkt_node node;
+        size_t rec_size = sizeof(struct pkt_node);
 
-    while (fgets(current_line, max_line_len, f_basics->file) != NULL) {
-        if (previous_line[0] != '\0') {
-            char *fields[TOTAL_FIELDS];
+        while (true) {
+            long pos = ftell(f_basics->file);
+            if (pos < 0) {
+                PERROR_FUNCTION("ftell");
+                break;
+            }
+            if ((long)(pos + rec_size) > f_basics->last_line_offset) {
+                // no more record: would cross into the footer — stop.
+                break;
+            }
+            fread(&node, 1, rec_size, f_basics->file);
 
-            fill_fields_from_line(fields, previous_line, BODY);
-
-            if (my_atol(fields[FLOW_ID], BASE16) == flowid) {
-                rel_time = my_atol(fields[RELATIVE_TIME], BASE16) - start_time;
-                cwnd = my_atol(fields[CWND], BASE16);
-                ssthresh = my_atol(fields[SSTHRESH], BASE16);
-                srtt = my_atol(fields[SRTT], BASE16);
-                data_sz = my_atol(fields[TCP_DATA_SZ], BASE16);
+            if (node.flowid == flowid) {
+                rel_time = node.tval - start_time;
+                cwnd = node.snd_cwnd;
+                ssthresh = node.snd_ssthresh;
+                srtt = node.srtt;
+                data_sz = node.data_sz;
 
                 f_info->srtt_sum += srtt;
                 if (f_info->srtt_min > srtt) {
@@ -106,22 +113,80 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                     f_info->fragment_cnt++;
                 }
 
-                if (strcmp(fields[DIRECTION], "o") == 0) {
-                    f_info->dir_out++;
-                } else {
+                if (node.direction == DIR_IN) {
                     f_info->dir_in++;
+                } else {
+                    f_info->dir_out++;
                 }
 
                 fprintf(plot_file,
                         "%c" TAB "%.3f" TAB "%8u" TAB "%10u" TAB "%6u" TAB "%5u\n",
-                        *fields[DIRECTION], rel_time / 1000.0f, cwnd,
-                        ssthresh, srtt, data_sz);
+                        (node.direction == DIR_IN) ? 'i' : 'o',
+                        rel_time / 1000.0f, cwnd, ssthresh, srtt, data_sz);
             }
+            num_records++;
         }
+    } else {
+        while (fgets(current_line, max_line_len, f_basics->file) != NULL) {
+            if (previous_line[0] != '\0') {
+                char *fields[TOTAL_FIELDS];
 
-        line_cnt++;
-        /* Update the previous line to be the current line. */
-        strcpy(previous_line, current_line);
+                fill_fields_from_line(fields, previous_line, BODY);
+
+                if (my_atol(fields[FLOW_ID], BASE16) == flowid) {
+                    rel_time = my_atol(fields[RELATIVE_TIME], BASE16) - start_time;
+                    cwnd = my_atol(fields[CWND], BASE16);
+                    ssthresh = my_atol(fields[SSTHRESH], BASE16);
+                    srtt = my_atol(fields[SRTT], BASE16);
+                    data_sz = my_atol(fields[TCP_DATA_SZ], BASE16);
+
+                    f_info->srtt_sum += srtt;
+                    if (f_info->srtt_min > srtt) {
+                        f_info->srtt_min = srtt;
+                    }
+                    if (f_info->srtt_max < srtt) {
+                        f_info->srtt_max = srtt;
+                    }
+
+                    f_info->cwnd_sum += cwnd;
+                    if (f_info->cwnd_min > cwnd) {
+                        f_info->cwnd_min = cwnd;
+                    }
+                    if (f_info->cwnd_max < cwnd) {
+                        f_info->cwnd_max = cwnd;
+                    }
+
+                    if (data_sz > 0) {
+                        f_info->total_data_sz += data_sz;
+                        f_info->data_pkt_cnt++;
+                        if (f_info->min_payload_sz > data_sz) {
+                            f_info->min_payload_sz = data_sz;
+                        }
+                        if (f_info->max_payload_sz < data_sz) {
+                            f_info->max_payload_sz = data_sz;
+                        }
+                    }
+                    if ((data_sz % f_info->mss) > 0) {
+                        f_info->fragment_cnt++;
+                    }
+
+                    if (strcmp(fields[DIRECTION], "o") == 0) {
+                        f_info->dir_out++;
+                    } else {
+                        f_info->dir_in++;
+                    }
+
+                    fprintf(plot_file,
+                            "%c" TAB "%.3f" TAB "%8u" TAB "%10u" TAB "%6u" TAB "%5u\n",
+                            *fields[DIRECTION], rel_time / 1000.0f, cwnd,
+                            ssthresh, srtt, data_sz);
+                }
+            }
+
+            line_cnt++;
+            /* Update the previous line to be the current line. */
+            strcpy(previous_line, current_line);
+        }
     }
 
     if (fclose(plot_file) == EOF) {
@@ -129,6 +194,7 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     }
 
     f_basics->num_lines = line_cnt;
+    f_basics->num_records = num_records;
 }
 
 int main(int argc, char *argv[]) {

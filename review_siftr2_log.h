@@ -30,13 +30,24 @@ enum line_type {
     BODY,
     FOOT,
 };
+
+// header fields
 enum {
     ENABLE_TIME_SECS,
     ENABLE_TIME_USECS,
     SIFTRVER,
     IPMODE,
+    REC_FMT,
     SYSVER,
     TOTAL_FIRST_LINE_FIELDS,
+};
+
+struct first_line_fields {
+    char        siftrver[EIGHT_BYTES_LEN];
+    char        ipmode[EIGHT_BYTES_LEN];
+    char        rec_fmt[EIGHT_BYTES_LEN];
+    char        sysver[MAX_NAME_LENGTH];
+    struct timeval enable_time;
 };
 
 enum {
@@ -76,6 +87,52 @@ enum {
     INFLIGHT_BYTES, REASS_QLEN,
     TOTAL_FIELDS,
 };
+
+
+/* TCP traffic record structure from siftr2.c */
+struct pkt_node {
+    /* Flowid for the connection. */
+    uint32_t        flowid;
+    /* Direction pkt is travelling. */
+    enum {
+        DIR_IN = 0,
+        DIR_OUT = 1,
+    }               direction;
+    /* Timestamp (milliseconds) since SIFTR enable. */
+    uint32_t        tval;
+    /* Congestion Window (bytes). */
+    uint32_t        snd_cwnd;
+    /* Slow Start Threshold (bytes). */
+    uint32_t        snd_ssthresh;
+    /* Smoothed RTT (usecs). */
+    uint32_t        srtt;
+    /* the length of TCP segment payload in bytes */
+    uint32_t        data_sz;
+    /* Sending Window (bytes). */
+    uint32_t        snd_wnd;
+    /* Receive Window (bytes). */
+    uint32_t        rcv_wnd;
+    /* TCP control block flags. */
+    uint32_t        t_flags;
+    /* More tcpcb flags storage */
+    uint32_t        t_flags2;
+    /* Retransmission timeout (usec). */
+    uint32_t        rto;
+    /* Size of the TCP send buffer in bytes. */
+    uint32_t        snd_buf_hiwater;
+    /* Current num bytes in the send socket buffer. */
+    uint32_t        snd_buf_cc;
+    /* Size of the TCP receive buffer in bytes. */
+    uint32_t        rcv_buf_hiwater;
+    /* Current num bytes in the receive socket buffer. */
+    uint32_t        rcv_buf_cc;
+    /* Number of bytes inflight that we are waiting on ACKs for. */
+    uint32_t        pipe;
+    /* Number of segments currently in the reassembly queue. */
+    int32_t         t_segqlen;
+} __packed;
+
+_Static_assert(sizeof(struct pkt_node) == 72, "pkt_node must be 72 bytes");
 
 struct flow_info {
     /* permanent info */
@@ -124,15 +181,18 @@ struct flow_info {
 struct file_basic_stats {
     FILE        *file;
     uint64_t    num_lines;
+    uint64_t    num_records;
     uint32_t    flow_count;
     char        prefix[MAX_NAME_LENGTH - 20];
     uint32_t    first_flow_start_time;
+    long        last_line_offset;
     struct flow_info *flow_list;
     struct first_line_fields *first_line_stats;
     struct last_line_fields *last_line_stats;
 };
 
-extern bool verbose;
+bool verbose = false;
+bool is_rec_fmt_binary = false;
 void stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
                           char plot_file_name[]);
 
@@ -189,10 +249,11 @@ init_flow_info(struct flow_info *target_flow, char *fields[])
 
 /* Function to read the last line of a file */
 int
-read_last_line(FILE *file, char *lastLine)
+read_last_line(struct file_basic_stats *f_basics, char *lastLine)
 {
     long fileSize;
     int pos;
+    FILE *file = f_basics->file;
 
     if (lastLine == NULL) {
         PERROR_FUNCTION("empty buffer");
@@ -205,6 +266,8 @@ read_last_line(FILE *file, char *lastLine)
     for (pos = 1; pos < fileSize; pos++) {
         fseek(file, -pos, SEEK_END);
         if (fgetc(file) == '\n') {
+            // After finding '\n' by scanning back:
+            f_basics->last_line_offset = ftell(file);
             if (fgets(lastLine, MAX_LINE_LENGTH, file) != NULL) {
                 return EXIT_SUCCESS;
             }
@@ -273,24 +336,20 @@ get_first_2lines_stats(struct file_basic_stats *f_basics)
 {
     FILE *file = f_basics->file;
     struct first_line_fields *f_line_stats = NULL;
-    char *firstLine = (char *)calloc(MAX_LINE_LENGTH, sizeof(char));
-    if (firstLine == NULL) {
-        PERROR_FUNCTION("malloc");
-        return;
-    }
+    char line[MAX_LINE_LENGTH] = {};
 
     /* read the first line of the file */
-    if (fgets(firstLine, MAX_LINE_LENGTH, file) != NULL) {
+    if (fgets(line, sizeof(line), file) != NULL) {
         /* 6 fields in the first line */
         char *fields[TOTAL_FIRST_LINE_FIELDS];
         uint32_t field_count = 0;
         f_line_stats = (struct first_line_fields *)malloc(sizeof(*f_line_stats));
 
         /* Strip newline characters at the end */
-        firstLine[strcspn(firstLine, "\r\n")] = '\0';
+        line[strcspn(line, "\r\n")] = '\0';
 
         /* Tokenize the line using comma as the delimiter */
-        char *token = strtok(firstLine, TAB_DELIMITER);
+        char *token = strtok(line, TAB_DELIMITER);
         while (token != NULL) {
             fields[field_count++] = token;
             token = strtok(NULL, TAB_DELIMITER);
@@ -302,35 +361,47 @@ get_first_2lines_stats(struct file_basic_stats *f_basics)
                  next_sub_str_from(fields[SIFTRVER], EQUAL_DELIMITER));
         snprintf(f_line_stats->ipmode, sizeof(f_line_stats->ipmode), "%s",
                  next_sub_str_from(fields[IPMODE], EQUAL_DELIMITER));
+        snprintf(f_line_stats->rec_fmt, sizeof(f_line_stats->rec_fmt), "%s",
+                 next_sub_str_from(fields[REC_FMT], EQUAL_DELIMITER));
         snprintf(f_line_stats->sysver, sizeof(f_line_stats->sysver), "%s",
                  next_sub_str_from(fields[SYSVER], EQUAL_DELIMITER));
 
-        free(firstLine);
+        if (strncmp(f_line_stats->rec_fmt, "binary", sizeof("binary")) == 0) {
+            is_rec_fmt_binary = true;
+        }
     } else {
-        free(firstLine);
         PERROR_FUNCTION("Failed to read the first line.");
         return;
     }
 
     {
-        /* read the second line of the file */
-        char line[MAX_LINE_LENGTH] = {};
-        if (fgets(line, sizeof(line), file) == NULL) {
-            PERROR_FUNCTION("Failed to read the second line");
-            return;
+        /* read the first record at the second line of the file */
+        if (is_rec_fmt_binary) {
+            struct pkt_node node;
+            size_t rec_size = sizeof(struct pkt_node);
+            if (fread(&node, 1, rec_size, file) == 0) {
+                f_basics->first_flow_start_time = node.tval;
+            }
+        } else {
+            if (fgets(line, sizeof(line), file) == NULL) {
+                PERROR_FUNCTION("Failed to read the second line");
+                return;
+            }
+            char *fields[TOTAL_FIELDS];
+            fill_fields_from_line(fields, line, BODY);
+            f_basics->first_flow_start_time = my_atol(fields[RELATIVE_TIME], BASE16);
         }
-        char *fields[TOTAL_FIELDS];
-        fill_fields_from_line(fields, line, BODY);
-        f_basics->first_flow_start_time = my_atol(fields[RELATIVE_TIME], BASE16);
     }
 
     if (verbose) {
-        printf("enable_time: %ld.%ld, siftrver: %s, ipmode: %s, sysver: %s\n",
-                (long)f_line_stats->enable_time.tv_sec,
-                (long)f_line_stats->enable_time.tv_usec,
-                f_line_stats->siftrver,
-                f_line_stats->ipmode,
-                f_line_stats->sysver);
+        printf("enable_time: %ld.%ld, siftrver: %s, ipmode: %s, rec_fmt: %s, "
+               "sysver: %s\n",
+               (long)f_line_stats->enable_time.tv_sec,
+               (long)f_line_stats->enable_time.tv_usec,
+               f_line_stats->siftrver,
+               f_line_stats->ipmode,
+               f_line_stats->rec_fmt,
+               f_line_stats->sysver);
 
         printf("first flow start at: %.3f\n\n", f_basics->first_flow_start_time / 1000.0f);
     }
@@ -341,15 +412,10 @@ get_first_2lines_stats(struct file_basic_stats *f_basics)
 static inline void
 get_last_line_stats(struct file_basic_stats *f_basics)
 {
-    FILE *file = f_basics->file;
     struct last_line_fields *l_line_stats = NULL;
-    char *lastLine = (char *)calloc(MAX_LINE_LENGTH, sizeof(char));
-    if (lastLine == NULL) {
-        PERROR_FUNCTION("malloc");
-        return;
-    }
+    char line[MAX_LINE_LENGTH] = {};
 
-    if (read_last_line(file, lastLine) == EXIT_SUCCESS) {
+    if (read_last_line(f_basics, line) == EXIT_SUCCESS) {
         char *fields[TOTAL_LAST_LINE_FIELDS];
         uint32_t field_count = 0;
         l_line_stats = (struct last_line_fields *)malloc(sizeof(*l_line_stats));
@@ -358,13 +424,13 @@ get_last_line_stats(struct file_basic_stats *f_basics)
         }
 
         /* includes the null terminator */
-        l_line_stats->line_len = strlen(lastLine) + 1;
+        l_line_stats->line_len = strlen(line) + 1;
 
         /* Strip newline characters at the end */
-        lastLine[strcspn(lastLine, "\r\n")] = '\0';
+        line[strcspn(line, "\r\n")] = '\0';
 
         // Tokenize the line using tab as the delimiter
-        char *token = strtok(lastLine, TAB_DELIMITER);
+        char *token = strtok(line, TAB_DELIMITER);
         while (token != NULL) {
             fields[field_count++] = token;
             token = strtok(NULL, TAB_DELIMITER);
@@ -388,10 +454,7 @@ get_last_line_stats(struct file_basic_stats *f_basics)
         if (l_line_stats->flow_list_str == NULL) {
             PERROR_FUNCTION("Failed to strdup the last line.");
         }
-
-        free(lastLine);
     } else {
-        free(lastLine);
         PERROR_FUNCTION("Failed to read the last line.");
         return;
     }
@@ -492,7 +555,6 @@ get_file_basics(struct file_basic_stats *f_basics, const char *file_name)
         PERROR_FUNCTION("head note not exist");
         return EXIT_FAILURE;
     }
-    assert(f_basics->first_flow_start_time != 0);
 
     get_last_line_stats(f_basics);
     if (f_basics->last_line_stats == NULL) {
@@ -578,7 +640,11 @@ read_body_by_flowid(struct file_basic_stats *f_basics, uint32_t flowid)
 
         stats_into_plot_file(f_basics, flowid, plot_file_name);
 
-        printf("input file has total lines: %" PRIu64 "\n", f_basics->num_lines);
+        if (is_rec_fmt_binary) {
+            printf("input file has total records: %" PRIu64 "\n", f_basics->num_records);
+        } else {
+            printf("input file has total lines: %" PRIu64 "\n", f_basics->num_lines);
+        }
         printf("plot_file_name: %s\n", plot_file_name);
 
         printf("++++++++++++++++++++++++++++++ summary ++++++++++++++++++++++++++++\n");
