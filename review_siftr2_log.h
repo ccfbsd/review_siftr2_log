@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,50 +33,66 @@ enum line_type {
 };
 
 // header fields
+/* first_line_fields.def */
+#define FIRST_LINE_FIELDS(X)          \
+    X(ENABLE_TIME_SECS)               \
+    X(ENABLE_TIME_USECS)              \
+    X(SIFTRVER)                       \
+    X(REC_FMT)                        \
+    X(SYSVER)
+
 enum {
-    ENABLE_TIME_SECS,
-    ENABLE_TIME_USECS,
-    SIFTRVER,
-    IPMODE,
-    REC_FMT,
-    SYSVER,
-    TOTAL_FIRST_LINE_FIELDS,
+#define X(name) name,
+    FIRST_LINE_FIELDS(X)
+#undef X
+    TOTAL_FIRST_LINE_FIELDS
 };
 
 struct first_line_fields {
-    char        siftrver[EIGHT_BYTES_LEN];
-    char        ipmode[EIGHT_BYTES_LEN];
-    char        rec_fmt[EIGHT_BYTES_LEN];
-    char        sysver[MAX_NAME_LENGTH];
     struct timeval enable_time;
+    char siftrver[EIGHT_BYTES_LEN];
+    char rec_fmt[EIGHT_BYTES_LEN];
+    char sysver[NAME_MAX];
 };
 
+_Static_assert(TOTAL_FIRST_LINE_FIELDS == 5, "First line format changed");
+
+// footer fields
+/* last_line_fields.def */
+#define LAST_LINE_FIELDS(X)         \
+    X(DISABLE_TIME_SECS)            \
+    X(DISABLE_TIME_USECS)           \
+    X(GLOBAL_FLOW_CNT)              \
+    X(RING_DROPS)                   \
+    X(MAX_STR_SIZE)                 \
+    X(GEN_FLOWID_CNT)               \
+    X(FLOW_LIST)                    \
+
 enum {
-    DISABLE_TIME_SECS,
-    DISABLE_TIME_USECS,
-    GLOBAL_FLOW_CNT,
-    RING_DROPS,
-    MAX_STR_SIZE,
-    GEN_FLOWID_CNT,
-    FLOW_LIST,
-    TOTAL_LAST_LINE_FIELDS,
+#define X(name) name,
+    LAST_LINE_FIELDS(X)
+#undef X
+    TOTAL_LAST_LINE_FIELDS
 };
 
 struct last_line_fields {
-    uint32_t    global_flow_cnt;
-    uint32_t    ring_drops;
-    uint32_t    max_str_size;
-    uint32_t    gen_flowid_cnt;
-    uint32_t    line_len;           /* includes the null terminator */
-    char        *flow_list_str;
     struct timeval disable_time;
+    uint32_t global_flow_cnt;
+    uint32_t ring_drops;
+    uint32_t max_str_size;       // is `record_size` if the log is binary format
+    uint32_t gen_flowid_cnt;
+    uint32_t line_len;           /* includes the null terminator */
+    char     *flow_list_str;
 };
+
+_Static_assert(TOTAL_LAST_LINE_FIELDS == 7, "First line format changed");
 
 /* flow list fields in the foot note of the siftr2 log */
 enum {
-    FL_FLOW_ID,     FL_LOIP,        FL_LPORT,       FL_FOIP,    FL_FPORT,
-    FL_STACK_TYPE,  FL_TCP_CC,      FL_MSS,         FL_ISSACK,  FL_SNDSCALE,
-    FL_RCVSCALE,    FL_NUMRECORD,   FL_NTRANS,      TOTAL_FLOWLIST_FIELDS,
+    FL_FLOW_ID,     FL_IPVER,       FL_LOIP,        FL_LPORT,
+    FL_FOIP,        FL_FPORT,       FL_STACK_TYPE,  FL_TCP_CC,
+    FL_MSS,         FL_ISSACK,      FL_SNDSCALE,    FL_RCVSCALE,
+    FL_NUMRECORD,   FL_NTRANS,      TOTAL_FLOWLIST_FIELDS,
 };
 
 /* TCP traffic record fields */
@@ -183,7 +200,7 @@ struct file_basic_stats {
     uint64_t    num_lines;
     uint64_t    num_records;
     uint32_t    flow_count;
-    char        prefix[MAX_NAME_LENGTH - 20];
+    char        prefix[NAME_MAX - 20];
     uint32_t    first_flow_start_time;
     long        last_line_offset;
     struct flow_info *flow_list;
@@ -213,11 +230,12 @@ init_flow_info(struct flow_info *target_flow, char *fields[])
 {
     if (target_flow != NULL) {
         target_flow->flowid = (uint32_t)my_atol(fields[FL_FLOW_ID], BASE16);
+        target_flow->ipver = (uint8_t)my_atol(fields[FL_IPVER], BASE10);
         snprintf(target_flow->laddr, sizeof(target_flow->laddr), "%s", fields[FL_LOIP]);
         target_flow->lport = (uint16_t)my_atol(fields[FL_LPORT], BASE10);
         snprintf(target_flow->faddr, sizeof(target_flow->faddr), "%s", fields[FL_FOIP]);
         target_flow->fport = (uint16_t)my_atol(fields[FL_FPORT], BASE10);
-        target_flow->ipver = INP_IPV4;
+
         target_flow->stack_type = (int)my_atol(fields[FL_STACK_TYPE], BASE10);
         target_flow->tcp_cc = (int)my_atol(fields[FL_TCP_CC], BASE10);
         target_flow->mss = (uint32_t)my_atol(fields[FL_MSS], BASE10);
@@ -268,14 +286,14 @@ read_last_line(struct file_basic_stats *f_basics, char *lastLine)
         if (fgetc(file) == '\n') {
             // After finding '\n' by scanning back:
             f_basics->last_line_offset = ftell(file);
-            if (fgets(lastLine, MAX_LINE_LENGTH, file) != NULL) {
+            if (fgets(lastLine, PATH_MAX, file) != NULL) {
                 return EXIT_SUCCESS;
             }
         }
     }
     /* If file has only one line, handle that case */
     rewind(file);
-    if (fgets(lastLine, MAX_LINE_LENGTH, file) != NULL) {
+    if (fgets(lastLine, sizeof(lastLine), file) != NULL) {
         return EXIT_SUCCESS;
     } else {
         PERROR_FUNCTION("fgets");
@@ -336,7 +354,7 @@ get_first_2lines_stats(struct file_basic_stats *f_basics)
 {
     FILE *file = f_basics->file;
     struct first_line_fields *f_line_stats = NULL;
-    char line[MAX_LINE_LENGTH] = {};
+    char line[PATH_MAX] = {};
 
     /* read the first line of the file */
     if (fgets(line, sizeof(line), file) != NULL) {
@@ -359,8 +377,6 @@ get_first_2lines_stats(struct file_basic_stats *f_basics)
         f_line_stats->enable_time.tv_usec = GET_VALUE(fields[ENABLE_TIME_USECS]);
         snprintf(f_line_stats->siftrver, sizeof(f_line_stats->siftrver), "%s",
                  next_sub_str_from(fields[SIFTRVER], EQUAL_DELIMITER));
-        snprintf(f_line_stats->ipmode, sizeof(f_line_stats->ipmode), "%s",
-                 next_sub_str_from(fields[IPMODE], EQUAL_DELIMITER));
         snprintf(f_line_stats->rec_fmt, sizeof(f_line_stats->rec_fmt), "%s",
                  next_sub_str_from(fields[REC_FMT], EQUAL_DELIMITER));
         snprintf(f_line_stats->sysver, sizeof(f_line_stats->sysver), "%s",
@@ -394,12 +410,11 @@ get_first_2lines_stats(struct file_basic_stats *f_basics)
     }
 
     if (verbose) {
-        printf("enable_time: %ld.%ld, siftrver: %s, ipmode: %s, rec_fmt: %s, "
+        printf("enable_time: %ld.%ld, siftrver: %s, rec_fmt: %s, "
                "sysver: %s\n",
                (long)f_line_stats->enable_time.tv_sec,
                (long)f_line_stats->enable_time.tv_usec,
                f_line_stats->siftrver,
-               f_line_stats->ipmode,
                f_line_stats->rec_fmt,
                f_line_stats->sysver);
 
@@ -413,7 +428,7 @@ static inline void
 get_last_line_stats(struct file_basic_stats *f_basics)
 {
     struct last_line_fields *l_line_stats = NULL;
-    char line[MAX_LINE_LENGTH] = {};
+    char line[PATH_MAX] = {};
 
     if (read_last_line(f_basics, line) == EXIT_SUCCESS) {
         char *fields[TOTAL_LAST_LINE_FIELDS];
@@ -478,9 +493,9 @@ get_last_line_stats(struct file_basic_stats *f_basics)
 static void
 print_flow_info(struct flow_info *flow_info)
 {
-    printf(" id:%08x (%s:%hu<->%s:%hu) stack:%s tcp_cc:%s mss:%u SACK:%d"
+    printf(" id:%08x %s (%s:%hu<->%s:%hu) stack:%s tcp_cc:%s mss:%u SACK:%d"
            " snd/rcv_scal:%hhu/%hhu cnt:%" PRIu64 "/%" PRIu64 "\n",
-           flow_info->flowid,
+           flow_info->flowid, (flow_info->ipver == IPV4) ? "IPv4" : "IPv6",
            flow_info->laddr, flow_info->lport,
            flow_info->faddr, flow_info->fport,
            (flow_info->stack_type == RACK) ? "rack" : "fbsd",
@@ -627,14 +642,14 @@ read_body_by_flowid(struct file_basic_stats *f_basics, uint32_t flowid)
     printf("input flow id is: %08x\n", flowid);
 
     if (is_flowid_in_file(f_basics, flowid, &idx)) {
-        char plot_file_name[MAX_NAME_LENGTH];
+        char plot_file_name[NAME_MAX];
         struct flow_info *f_info = &f_basics->flow_list[idx];
 
         // Combine the strings into the plot_file buffer
         if (strlen(f_basics->prefix) == 0) {
-            snprintf(plot_file_name, MAX_NAME_LENGTH, "plot_%08x.txt", flowid);
+            snprintf(plot_file_name, NAME_MAX, "plot_%08x.txt", flowid);
         } else {
-            snprintf(plot_file_name, MAX_NAME_LENGTH, "%s.%08x.txt",
+            snprintf(plot_file_name, NAME_MAX, "%s.%08x.txt",
                      f_basics->prefix, flowid);
         }
 
