@@ -74,7 +74,6 @@ int reader_thread(void *arg) {
             num_records++;
         }
     } else {
-        line_cnt++; // Increment line counter, now shall be at the 2nd line
         while (fgets(cur_line, line_len, ctx->f_basics->file)) {
             if (have_prev && (fast_hex8_to_u32(prev_line) == ctx->flowid)) {
                 fill_fields_from_line(fields, prev_line, BODY);
