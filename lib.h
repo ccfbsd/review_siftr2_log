@@ -106,6 +106,7 @@ enum {
 void
 translate_tflags(uint32_t flags, char str_array[], size_t arr_size)
 {
+    (void)arr_size;
     assert(arr_size >= (32 * sizeof("TF_CONGRECOVERY")));
 
     if (flags == 0) {
@@ -218,6 +219,7 @@ translate_tflags(uint32_t flags, char str_array[], size_t arr_size)
 void
 translate_tflags2(uint32_t flags, char str_array[], size_t arr_size)
 {
+    (void)arr_size;
     assert(arr_size >= (23 * sizeof("TF2_PROC_SACK_PROHIBIT")));
 
     if (flags == 0) {
