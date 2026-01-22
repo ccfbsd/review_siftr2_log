@@ -621,7 +621,7 @@ show_file_basic_stats(const struct file_basic_stats *f_basics)
     time_info = localtime(&seconds);
     strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", time_info);
 
-    printf("ending_time: %s.%06ld (%jd.%06ld)\n", buffer,
+    printf("ending_time:   %s.%06ld (%jd.%06ld)\n", buffer,
 	   (intmax_t)f_basics->last_line_stats->disable_time.tv_usec,
            f_basics->last_line_stats->disable_time.tv_sec,
            (intmax_t)f_basics->last_line_stats->disable_time.tv_usec);
