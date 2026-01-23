@@ -252,7 +252,6 @@ int main(int argc, char *argv[]) {
         {"help", no_argument, 0, 'h'},
         {"file", required_argument, 0, 'f'},
         {"stats", required_argument, 0, 's'},
-        {"flow_start", required_argument, 0, 't'},
         {"verbose", no_argument, 0, 'v'},
         {0, 0, 0, 0}
     };
@@ -269,7 +268,6 @@ int main(int argc, char *argv[]) {
                 printf("Usage: %s [options]\n", argv[0]);
                 printf(" -h, --help          Display this help message\n");
                 printf(" -f, --file          Get siftr log basics\n");
-                printf(" -t, --flow_start Unix_timestamp  The start Unix time of the first flow\n");
                 printf(" -s, --stats flowid  Get stats from flowid\n");
                 printf(" -v, --verbose       Verbose mode\n");
                 break;
@@ -281,12 +279,6 @@ int main(int argc, char *argv[]) {
                     return EXIT_FAILURE;
                 }
                 show_file_basic_stats(&f_basics);
-                break;
-            case 't':
-                opt_match = true;
-                printf("Unix time of the first flow starting time from "
-                       "input is: %s\n", optarg);
-                f_basics.first_flow_start_time = atof(optarg);
                 break;
             case 'p':
                 opt_match = true;
@@ -305,7 +297,7 @@ int main(int argc, char *argv[]) {
                 read_body_by_flowid(&f_basics, my_atol(optarg, BASE16));
                 break;
             default:
-                printf("Usage: %s [-v | -h] [-f file_name] [-t flow_start] "
+                printf("Usage: %s [-v | -h] [-f file_name] "
                        "[-p prefix] [-s flow_id]\n", argv[0]);
                 return EXIT_FAILURE;
         }
@@ -314,8 +306,8 @@ int main(int argc, char *argv[]) {
     /* Handle case where no options are provided or non-option arguments */
     if (!opt_match) {
         printf("Un-expected argument!\n");
-        printf("Usage: %s [-v | -h] [-f file_name] [-t flow_start] [-p prefix] [-s flow_id]"
-               "\n", argv[0]);
+        printf("Usage: %s [-v | -h] [-f file_name] [-p prefix] [-s flow_id]\n",
+               argv[0]);
         return EXIT_FAILURE;
     }
 
