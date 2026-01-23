@@ -392,7 +392,7 @@ get_first_2lines_stats(struct file_basic_stats *f_basics)
         if (is_rec_fmt_binary) {
             struct pkt_node node;
             size_t rec_size = sizeof(struct pkt_node);
-            if (fread(&node, 1, rec_size, file) == 0) {
+            if (fread(&node, 1, rec_size, file) != 0) {
                 f_basics->first_flow_start_time = node.tval;
             }
         } else {
