@@ -5,55 +5,48 @@ compile examples:
   
 compile in FreeBSD  
 % gmake  
-clang -std=c2x -O3 -Wall -Wextra -I. -o review_siftr2_log review_siftr2_log.c  
+clang -std=c23 -Wall -Wextra -pthread -I. -O3 -march=native -msse4.1 -mavx2 -mfma -DNDEBUG -o review_siftr2_log review_siftr2_log.c  
 %  
   
 compile in MacOS  
 % make  
-clang -std=c2x -O3 -Wall -Wextra -I. -o review_siftr2_log review_siftr2_log.c  
+clang -std=c23 -Wall -Wextra -pthread -I. -O3 -march=native -DNDEBUG -o review_siftr2_log review_siftr2_log.c  
 %  
   
 run examples:  
   
 % ./review_siftr2_log -f siftr2.log   
-input file name: siftr2.log   
-siftr version: 2.2   
-flow id list:   
- id:afc62e9e (192.168.50.14:5001<->192.168.50.14:46578) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:946495/946495   
- id:c5c22f15 (192.168.50.14:46578<->192.168.50.14:5001) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:946496/946496   
- id:c17d41af (192.168.50.14:5001<->192.168.50.14:30425) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:946991/946991   
- id:592641ae (192.168.50.14:30425<->192.168.50.14:5001) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:946992/946992   
-   
-starting_time: 2025-08-04 16:04:17.037345 (1754337857.037345)   
-ending_time: 2025-08-04 16:04:27.086014 (1754337867.086014)   
-log duration: 10.05 seconds   
-   
-this program execution time: 0.000 seconds  
+input file name: siftr2.log  
+siftr version: 2.5  
+flow id list:  
+ id:947fbda1 IPv4 (10.1.1.1:54321<->10.1.1.2:5201) stack:freebsd tcp_cc:cubic mss:1448 SACK:1 snd/rcv_scal:8/8 cnt:7773063/7773063  
+  
+starting_time: 2026-01-22 12:25:26.132319 (1769102726.132319)  
+ending_time:   2026-01-22 12:27:06.170838 (1769102826.170838)  
+log duration: 100.04 seconds  
+  
+this program execution time: 0.002 seconds  
 %   
   
-% ./review_siftr2_log -f siftr2.log -s c5c22f15  
+% ./review_siftr2_log -f siftr2.log -s 947fbda1  
 input file name: siftr2.log  
-siftr version: 2.2  
+siftr version: 2.5  
 flow id list:  
- id:afc62e9e (192.168.50.14:5001<->192.168.50.14:46578) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:946495/946495  
- id:c5c22f15 (192.168.50.14:46578<->192.168.50.14:5001) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:946496/946496  
- id:c17d41af (192.168.50.14:5001<->192.168.50.14:30425) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:946991/946991  
- id:592641ae (192.168.50.14:30425<->192.168.50.14:5001) stack:fbsd tcp_cc:CUBIC mss:16332 SACK:1 snd/rcv_scal:6/6 cnt:946992/946992  
+ id:947fbda1 IPv4 (10.1.1.1:54321<->10.1.1.2:5201) stack:freebsd tcp_cc:cubic mss:1448 SACK:1 snd/rcv_scal:8/8 cnt:7773063/7773063  
   
-starting_time: 2025-08-04 16:04:17.037345 (1754337857.037345)  
-ending_time: 2025-08-04 16:04:27.086014 (1754337867.086014)  
-log duration: 10.05 seconds  
-input flow id is: c5c22f15  
-plot_file_name: plot_c5c22f15.txt  
+starting_time: 2026-01-22 12:25:26.132319 (1769102726.132319)  
+ending_time:   2026-01-22 12:27:06.170838 (1769102826.170838)  
+log duration: 100.04 seconds  
+input flow id is: 947fbda1  
+input file has total lines: 7773065  
+plot_file_name: plot_947fbda1.txt  
 ++++++++++++++++++++++++++++++ summary ++++++++++++++++++++++++++++  
-  192.168.50.14:46578->192.168.50.14:5001 flowid: c5c22f15  
-input file has total lines: 3786976  
-input flow data_pkt_cnt: 630859, fragment_cnt: 20, fragment_ratio: 0.000  
-           avg_data_pkt: 16332, min_data_pkt: 28, max_data_pkt: 16332 bytes  
-           avg_srtt: 774, min_srtt: 2187, max_srtt: 40000 µs  
-           avg_cwnd: 353460, min_cwnd: 32664, max_cwnd: 1421003 bytes  
-           has 946496 useful records (630860 outputs, 315636 inputs)  
+  10.1.1.1:54321->10.1.1.2:5201 flowid: 947fbda1  
+input flow data_pkt_cnt: 3708579, fragment_cnt: 2, fragment_ratio: 0.000  
+           avg_payload: 3174, min_payload: 37, max_payload: 13032 bytes  
+           avg_srtt: 14423, min_srtt: 218, max_srtt: 16000 µs  
+           avg_cwnd: 1683218, min_cwnd: 14480, max_cwnd: 1684053 bytes  
+           has 7773063 useful records (3708582 outputs, 4064481 inputs)  
   
-this program execution time: 1.974 seconds  
-  
+this program execution time: 4.593 seconds  
 %  
