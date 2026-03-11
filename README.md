@@ -58,3 +58,23 @@ this program execution time: 2.199 seconds
   
 Above example shows the program can process 7.7 million records in 2.199 seconds,  
 which is around 3.5 million records per-second.  
+  
+The following table compares the performance of reviewing a log from each  
+siftr version. The log file contains a 30 seconds traffic of a single iperf3  
+TCP flow in a 1Gbps link at full speed between two FreeBSD nodes. The link has  
+MTU 1500 bytes and has TSO enabled. Tested in Apple M1pro.  
+  
+Commands in use:  
+sysctl net.inet.siftr[2].port_filter=54321;  
+sysctl net.inet.siftr[2].enabled=1;  
+iperf3 --cport 54321 -c r1 -t30 -i5 -Vfg;  
+sysctl net.inet.siftr[2].enabled=0;  
+  
+| siftr version | log size (MB) | review log execution time (seconds) | performance |  
+| stock 1.3.0   | 348   | 2.751   | base |  
+| siftr 2.0     | 323   | 1.811   | +34% |  
+| siftr 2.2     | 320   | 0.929   | +66% |  
+| siftr 2.3     | 222   | 0.740   | +73% |  
+| siftr 2.4     | 214   | 0.696   | +74% |  
+| siftr 2.5     | 216   | 0.712   | +74% |  
+  
