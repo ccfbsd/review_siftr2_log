@@ -20,7 +20,7 @@ stats_into_plot_file(struct file_basic_stats *f_basics, uint32_t flowid,
     uint32_t line_cnt = 0;
     uint32_t max_line_len = f_basics->last_line_stats->line_len;
     char current_line[max_line_len];
-    char previous_line[max_line_len] = {};
+    char previous_line[max_line_len];
 
     double first_flow_start_time = 0;
     double relative_time_stamp = 0;
